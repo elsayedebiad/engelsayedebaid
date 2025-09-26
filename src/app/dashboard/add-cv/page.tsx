@@ -1,14 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Priority } from '@prisma/client'
-import { ArrowLeft, Save, FileText } from 'lucide-react'
+import { Priority, Role } from '@prisma/client'
+import { ArrowLeft, Save, FileText, Shield } from 'lucide-react'
+
+interface User {
+  id: string
+  email: string
+  name: string
+  role: Role
+}
 
 export default function AddCVPage() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     // Basic Information
     fullName: '',
@@ -67,6 +76,45 @@ export default function AddCVPage() {
     notes: '',
   })
 
+  useEffect(() => {
+    checkAuth()
+  }, [])
+
+  const checkAuth = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+        if (data.user.role !== Role.ADMIN && data.user.role !== Role.SUB_ADMIN) {
+          toast.error('عذراً، فقط المدير العام أو نائبه يمكنهم إضافة السير الذاتية')
+          router.push('/dashboard')
+          return
+        }
+      } else {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        router.push('/login')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء التحقق من الصلاحيات')
+      router.push('/login')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -83,7 +131,12 @@ export default function AddCVPage() {
       return
     }
 
-    setIsLoading(true)
+    if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUB_ADMIN)) {
+      toast.error('عذراً، فقط المدير العام أو نائبه يمكنهم إضافة السير الذاتية')
+      return
+    }
+
+    setIsSubmitting(true)
 
     try {
       const token = localStorage.getItem('token')
@@ -112,7 +165,7 @@ export default function AddCVPage() {
     } catch (error) {
       toast.error('حدث خطأ أثناء إضافة السيرة الذاتية')
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -129,6 +182,32 @@ export default function AddCVPage() {
       default:
         return priority
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUB_ADMIN)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Shield className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">ليس لديك صلاحية</h3>
+          <p className="mt-1 text-sm text-gray-500">هذه الصفحة مخصصة للمدراء فقط</p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="mt-4 text-indigo-600 hover:text-indigo-800"
+          >
+            العودة للوحة التحكم
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
