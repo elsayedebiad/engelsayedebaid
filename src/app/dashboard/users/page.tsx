@@ -147,7 +147,7 @@ export default function UsersManagementPage() {
       case Role.SUB_ADMIN:
         return 'مدير فرعي'
       case Role.USER:
-        return 'مستخدم عادي'
+        return 'sales'
       default:
         return role
     }
@@ -290,7 +290,7 @@ export default function UsersManagementPage() {
             {isModalOpen && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium mb-4">
+            <h3 className="text-lg font-medium mb-4 text-black">
               {editingUser ? 'تعديل المستخدم' : 'إضافة مستخدم جديد'}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -333,7 +333,7 @@ export default function UsersManagementPage() {
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
                 >
-                  <option value={Role.USER}>مستخدم عادي</option>
+                  <option value={Role.USER}>sales</option>
                   <option value={Role.SUB_ADMIN}>مدير فرعي</option>
                   <option value={Role.ADMIN}>مدير عام</option>
                 </select>

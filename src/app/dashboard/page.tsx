@@ -981,33 +981,38 @@ export default function CVsPage() {
                       </td>
                       <td className="px-3 py-4">
                         <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => {
-                            CVActivityLogger.viewed(cv.id, cv.fullName)
-                            router.push(`/dashboard/cv/${cv.id}/alqaeid`)
-                          }}
-                          className="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-md"
-                          title="عرض السيرة"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => downloadSingleImage(cv.id)}
-                          className="p-1.5 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-md"
-                          title="تحميل صورة السيرة"
-                        >
-                          <ImageIcon className="h-4 w-4" />
-                        </button>
-                        {(user?.role === 'ADMIN' || user?.role === 'SUB_ADMIN') && (
+                          {/* زر عرض السيرة - متاح للجميع */}
                           <button
-                            onClick={() => router.push(`/dashboard/cv/${cv.id}`)}
-                            className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg"
-                            title="تعديل البيانات"
+                            onClick={() => {
+                              CVActivityLogger.viewed(cv.id, cv.fullName)
+                              router.push(`/dashboard/cv/${cv.id}/alqaeid`)
+                            }}
+                            className="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-md"
+                            title="عرض السيرة"
                           >
-                            <Edit className="h-5 w-5" />
+                            <FileText className="h-4 w-4" />
                           </button>
-                        )}
-                        {cv.status === CVStatus.NEW && (user?.role === 'ADMIN' || user?.role === 'SUB_ADMIN') && (
+                          
+                          {/* زر تحميل الصورة - متاح للجميع */}
+                          <button
+                            onClick={() => downloadSingleImage(cv.id)}
+                            className="p-1.5 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-md"
+                            title="تحميل صورة السيرة"
+                          >
+                            <ImageIcon className="h-4 w-4" />
+                          </button>
+                          
+                          {/* أزرار تغيير الحالة - للمدراء فقط */}
+                          {(user?.role === 'ADMIN' || user?.role === 'SUB_ADMIN') && (
+                            <button
+                              onClick={() => router.push(`/dashboard/cv/${cv.id}`)}
+                              className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg"
+                              title="تعديل البيانات"
+                            >
+                              <Edit className="h-5 w-5" />
+                            </button>
+                          )}
+                          {cv.status === CVStatus.NEW && (user?.role === 'ADMIN' || user?.role === 'SUB_ADMIN') && (
                           <>
                             <button
                               onClick={() => handleStatusChange(cv.id, CVStatus.BOOKED)}

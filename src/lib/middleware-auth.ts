@@ -25,6 +25,20 @@ type AuthenticatedUser = {
   isActive: boolean;
 }
 
+// وظيفة للتحقق من صلاحيات المستخدم
+export function checkUserPermissions(user: AuthenticatedUser, action: 'view' | 'edit' | 'delete'): boolean {
+  switch (action) {
+    case 'view':
+      return user.isActive; // أي مستخدم نشط يمكنه المشاهدة
+    case 'edit':
+      return user.isActive && (user.role === Role.ADMIN || user.role === Role.SUB_ADMIN);
+    case 'delete':
+      return user.isActive && user.role === Role.ADMIN; // فقط المدير العام يمكنه الحذف
+    default:
+      return false;
+  }
+}
+
 export async function validateAuthFromRequest(request: NextRequest): Promise<{ success: boolean; user?: AuthenticatedUser; error?: string }> {
   try {
     // Get token from Authorization header

@@ -283,6 +283,12 @@ export default function CVDetailPage() {
 
   const handleSave = async () => {
     if (!cv) return
+    
+    // التحقق من صلاحيات المستخدم
+    if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUB_ADMIN)) {
+      toast.error('عذراً، فقط المدير العام أو نائبه يمكنهما تعديل السير الذاتية');
+      return;
+    }
 
     setIsSaving(true)
     try {
@@ -321,6 +327,13 @@ export default function CVDetailPage() {
   }
 
   const handleDelete = async () => {
+    // التحقق من صلاحيات المستخدم
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.role !== 'ADMIN') {
+      toast.error('عذراً، فقط المدير العام يمكنه حذف السير الذاتية');
+      return;
+    }
+
     if (!cv || !confirm('هل أنت متأكد من حذف هذه السيرة الذاتية؟')) {
       return
     }
