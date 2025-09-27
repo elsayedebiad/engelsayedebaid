@@ -177,33 +177,71 @@ const checkForDuplicates = async (cv: ProcessedCV) => {
   }
 }
 
+// Helper functions for data cleaning
+const cleanPhoneNumber = (phone: any): string | undefined => {
+  if (!phone) return undefined
+  // Convert to string and clean
+  const phoneStr = String(phone).replace(/[^\d+]/g, '')
+  return phoneStr || undefined
+}
+
+const cleanDateValue = (dateValue: any): string | undefined => {
+  if (!dateValue) return undefined
+  
+  // If it's a number (Excel serial date), convert it
+  if (typeof dateValue === 'number') {
+    try {
+      // Excel serial date to JavaScript date
+      const date = new Date((dateValue - 25569) * 86400 * 1000)
+      return date.toISOString().split('T')[0] // YYYY-MM-DD format
+    } catch {
+      return undefined
+    }
+  }
+  
+  // If it's already a string, return as is
+  return String(dateValue).trim() || undefined
+}
+
+const cleanStringValue = (value: any): string | undefined => {
+  if (!value) return undefined
+  return String(value).trim() || undefined
+}
+
+const cleanNumberValue = (value: any): number | undefined => {
+  if (!value) return undefined
+  const num = typeof value === 'number' ? value : parseFloat(String(value))
+  return isNaN(num) ? undefined : num
+}
+
 // Process Excel row to CV object
 const processExcelRow = (row: ExcelRow, rowNumber: number): ProcessedCV => {
   try {
     return {
       rowNumber,
-      fullName: row['الاسم الكامل'] || '',
-      fullNameArabic: row['الاسم بالعربية'],
-      email: row['البريد الإلكتروني'],
-      phone: row['رقم الهاتف'],
-      referenceCode: row['رمز المرجع'],
-      monthlySalary: row['الراتب الشهري'],
-      contractPeriod: row['فترة العقد'],
-      position: row['المنصب'],
-      passportNumber: row['رقم جواز السفر'],
-      passportExpiryDate: row['تاريخ انتهاء الجواز'],
-      passportIssuePlace: row['مكان إصدار الجواز'],
-      nationality: row['الجنسية'],
-      religion: row['الديانة'],
-      dateOfBirth: row['تاريخ الميلاد'],
-      placeOfBirth: row['مكان الميلاد'],
-      livingTown: row['مكان السكن'],
+      fullName: cleanStringValue(row['الاسم الكامل']) || '',
+      fullNameArabic: cleanStringValue(row['الاسم بالعربية']),
+      email: cleanStringValue(row['البريد الإلكتروني']),
+      phone: cleanPhoneNumber(row['رقم الهاتف']),
+      referenceCode: cleanStringValue(row['رمز المرجع']),
+      monthlySalary: cleanStringValue(row['الراتب الشهري']),
+      contractPeriod: cleanStringValue(row['فترة العقد']),
+      position: cleanStringValue(row['المنصب']),
+      passportNumber: cleanStringValue(row['رقم جواز السفر']),
+      passportIssueDate: cleanDateValue(row['تاريخ إصدار الجواز']),
+      passportExpiryDate: cleanDateValue(row['تاريخ انتهاء الجواز']),
+      passportIssuePlace: cleanStringValue(row['مكان إصدار الجواز']),
+      nationality: cleanStringValue(row['الجنسية']),
+      religion: cleanStringValue(row['الديانة']),
+      dateOfBirth: cleanDateValue(row['تاريخ الميلاد']),
+      placeOfBirth: cleanStringValue(row['مكان الميلاد']),
+      livingTown: cleanStringValue(row['مكان السكن']),
       maritalStatus: normalizeMaritalStatus(row['الحالة الاجتماعية']),
-      numberOfChildren: row['عدد الأطفال'] ? parseInt(row['عدد الأطفال'].toString()) || undefined : undefined,
-      weight: row['الوزن'],
-      height: row['الطول'],
-      complexion: row['لون البشرة'],
-      age: row['العمر'] ? parseInt(row['العمر'].toString()) || undefined : undefined,
+      numberOfChildren: cleanNumberValue(row['عدد الأطفال']),
+      weight: cleanStringValue(row['الوزن']),
+      height: cleanStringValue(row['الطول']),
+      complexion: cleanStringValue(row['لون البشرة']),
+      age: cleanNumberValue(row['العمر']),
       englishLevel: normalizeSkillLevel(row['مستوى الإنجليزية']),
       arabicLevel: normalizeSkillLevel(row['مستوى العربية']),
       babySitting: normalizeSkillLevel(row['رعاية الأطفال']),
@@ -371,8 +409,7 @@ export async function POST(request: NextRequest) {
       // Insert new records
       for (const cv of results.details.newCVs) {
         try {
-          await safeDBOperation(
-            () => prisma.cV.create({
+          await prisma.cV.create({
               data: {
                 fullName: cv.fullName,
                 fullNameArabic: cv.fullNameArabic || null,
@@ -383,6 +420,7 @@ export async function POST(request: NextRequest) {
                 contractPeriod: cv.contractPeriod || null,
                 position: cv.position || null,
                 passportNumber: cv.passportNumber || '',
+                passportIssueDate: cv.passportIssueDate || null,
                 passportExpiryDate: cv.passportExpiryDate || null,
                 passportIssuePlace: cv.passportIssuePlace || null,
                 nationality: cv.nationality || null,
@@ -398,6 +436,7 @@ export async function POST(request: NextRequest) {
                 age: cv.age || null,
                 englishLevel: cv.englishLevel || null,
                 arabicLevel: cv.arabicLevel || null,
+                educationLevel: cv.educationLevel || null,
                 babySitting: cv.babySitting || null,
                 childrenCare: cv.childrenCare || null,
                 tutoring: cv.tutoring || null,
@@ -408,6 +447,9 @@ export async function POST(request: NextRequest) {
                 arabicCooking: cv.arabicCooking || null,
                 sewing: cv.sewing || null,
                 driving: cv.driving || null,
+                elderCare: cv.elderCare || null,
+                housekeeping: cv.housekeeping || null,
+                cooking: cv.cooking || null,
                 experience: cv.experience || null,
                 education: cv.education || null,
                 skills: cv.skills || null,
@@ -418,11 +460,20 @@ export async function POST(request: NextRequest) {
                 createdById: userId,
                 updatedById: userId
               }
-            }),
-            `فشل في إنشاء السيرة الذاتية للصف ${cv.rowNumber}`
-          )
+            })
         } catch (error) {
-          errors.push(`الصف ${cv.rowNumber}: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`)
+          console.error(`فشل في إنشاء السيرة الذاتية للصف ${cv.rowNumber}:`, error)
+          
+          // نقل السيرة من newCVs إلى errorCVs
+          const errorCV: ProcessedCV = {
+            ...cv,
+            duplicateReason: `خطأ في الحفظ: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`
+          }
+          results.details.errorCVs.push(errorCV)
+          results.errorRecords++
+          results.newRecords--
+          
+          errors.push(`الصف ${cv.rowNumber} (${cv.fullName}): ${error instanceof Error ? error.message : 'خطأ غير معروف'}`)
         }
       }
 
@@ -430,8 +481,7 @@ export async function POST(request: NextRequest) {
       for (const cv of results.details.updatedCVs) {
         if (cv.existingId) {
           try {
-            await safeDBOperation(
-              () => prisma.cV.update({
+            await prisma.cV.update({
                 where: { id: cv.existingId },
                 data: {
                   fullName: cv.fullName,
@@ -443,6 +493,7 @@ export async function POST(request: NextRequest) {
                   contractPeriod: cv.contractPeriod || null,
                   position: cv.position || null,
                   passportNumber: cv.passportNumber || '',
+                  passportIssueDate: cv.passportIssueDate || null,
                   passportExpiryDate: cv.passportExpiryDate || null,
                   passportIssuePlace: cv.passportIssuePlace || null,
                   nationality: cv.nationality || null,
@@ -458,6 +509,7 @@ export async function POST(request: NextRequest) {
                   age: cv.age || null,
                   englishLevel: cv.englishLevel || null,
                   arabicLevel: cv.arabicLevel || null,
+                  educationLevel: cv.educationLevel || null,
                   babySitting: cv.babySitting || null,
                   childrenCare: cv.childrenCare || null,
                   tutoring: cv.tutoring || null,
@@ -468,6 +520,9 @@ export async function POST(request: NextRequest) {
                   arabicCooking: cv.arabicCooking || null,
                   sewing: cv.sewing || null,
                   driving: cv.driving || null,
+                  elderCare: cv.elderCare || null,
+                  housekeeping: cv.housekeeping || null,
+                  cooking: cv.cooking || null,
                   experience: cv.experience || null,
                   education: cv.education || null,
                   skills: cv.skills || null,
@@ -476,11 +531,20 @@ export async function POST(request: NextRequest) {
                   priority: cv.priority || 'MEDIUM',
                   updatedById: userId
                 }
-              }),
-              `فشل في تحديث السيرة الذاتية للصف ${cv.rowNumber}`
-            )
+              })
           } catch (error) {
-            errors.push(`الصف ${cv.rowNumber}: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`)
+            console.error(`فشل في تحديث السيرة الذاتية للصف ${cv.rowNumber}:`, error)
+            
+            // نقل السيرة من updatedCVs إلى errorCVs
+            const errorCV: ProcessedCV = {
+              ...cv,
+              duplicateReason: `خطأ في التحديث: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`
+            }
+            results.details.errorCVs.push(errorCV)
+            results.errorRecords++
+            results.updatedRecords--
+            
+            errors.push(`الصف ${cv.rowNumber} (${cv.fullName}): ${error instanceof Error ? error.message : 'خطأ غير معروف'}`)
           }
         }
       }
