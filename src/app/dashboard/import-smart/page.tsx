@@ -291,13 +291,26 @@ export default function SmartImportPage() {
     }
   }
 
-  const downloadTemplate = () => {
-    const link = document.createElement('a')
-    link.href = '/templates/قالب_السير_الذاتية_الكامل.xlsx'
-    link.download = 'قالب_السير_الذاتية_الكامل.xlsx'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  const downloadTemplate = async () => {
+    try {
+      const response = await fetch('/api/templates/excel-complete')
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'قالب_السير_الذاتية_الشامل.xlsx'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        toast.success('تم تحميل القالب بنجاح')
+      } else {
+        toast.error('فشل في تحميل القالب')
+      }
+    } catch (error) {
+      toast.error('حدث خطأ أثناء تحميل القالب')
+    }
   }
 
   const getTabColor = (tab: string) => {

@@ -60,6 +60,7 @@ model CV {
 
   // Passport Information
   passportNumber String? @unique
+  passportIssueDate  String?
   passportExpiryDate String?
   passportIssuePlace String?
 
@@ -79,6 +80,7 @@ model CV {
   // Languages and Education
   englishLevel       SkillLevel?
   arabicLevel        SkillLevel?
+  educationLevel     String?     // الدرجة العلمية
 
   // Skills and Experiences (YES/NO/WILLING)
   babySitting        SkillLevel?
@@ -91,6 +93,11 @@ model CV {
   arabicCooking      SkillLevel?
   sewing             SkillLevel?
   driving            SkillLevel?
+  
+  // Additional Skills from Al-Gaeid Template
+  elderCare          SkillLevel?  // رعاية المسنين
+  housekeeping       SkillLevel?  // التدبير المنزلي
+  cooking            SkillLevel?  // الطبخ العام
 
   // Previous Employment Abroad (JSON format)
   previousEmployment String?   // JSON array of {period, country, position}

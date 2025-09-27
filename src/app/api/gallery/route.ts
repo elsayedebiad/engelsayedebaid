@@ -8,9 +8,11 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const status = url.searchParams.get('status') as CVStatus | null
 
-    // عرض جميع السير الذاتية للمعرض العام (يمكن تخصيص هذا لاحقاً)
+    // عرض السير الذاتية المتاحة للمعرض العام (غير المحجوزة أو المتعاقدة)
     const whereClause: any = {
-      // يمكن إضافة شروط للخصوصية هنا
+      status: {
+        in: ['NEW', 'RETURNED'] // عرض السير الجديدة والمعادة فقط
+      }
     }
 
     // إذا تم تحديد status معين

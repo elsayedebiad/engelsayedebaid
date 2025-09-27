@@ -11,11 +11,12 @@ interface ExcelRow {
   'الاسم بالعربية'?: string
   'البريد الإلكتروني'?: string
   'رقم الهاتف'?: string
-  'رمز المرجع'?: string
+  'الكود المرجعي'?: string
   'الراتب الشهري'?: string
-  'فترة العقد'?: string
-  'المنصب'?: string
-  'رقم جواز السفر'?: string
+  'مدة العقد'?: string
+  'الوظيفة المطلوبة'?: string
+  'رقم الجواز'?: string
+  'تاريخ إصدار الجواز'?: string
   'تاريخ انتهاء الجواز'?: string
   'مكان إصدار الجواز'?: string
   'الجنسية'?: string
@@ -29,22 +30,25 @@ interface ExcelRow {
   'الطول'?: string
   'لون البشرة'?: string
   'العمر'?: string
-  'مستوى الإنجليزية'?: string
-  'مستوى العربية'?: string
+  'الإنجليزية'?: string
+  'العربية'?: string
+  'الدرجة العلمية'?: string
   'رعاية الأطفال'?: string
-  'رعاية الأطفال المتقدمة'?: string
-  'التدريس'?: string
-  'رعاية ذوي الاحتياجات الخاصة'?: string
+  'كي الملابس'?: string
+  'العناية بالوالدين'?: string
+  'الطبخ'?: string
+  'العمل المنزلي'?: string
   'التنظيف'?: string
   'الغسيل'?: string
-  'الكي'?: string
   'الطبخ العربي'?: string
   'الخياطة'?: string
   'القيادة'?: string
-  'الخبرة'?: string
-  'التعليم'?: string
-  'المهارات'?: string
-  'الملخص'?: string
+  'تعليم الأطفال'?: string
+  'رعاية المعوقين'?: string
+  'رعاية المسنين'?: string
+  'التدبير المنزلي'?: string
+  'الخبرة في الخارج'?: string
+  'الصورة الشخصية'?: string
   'الأولوية'?: string
   'ملاحظات'?: string
 }
@@ -61,6 +65,7 @@ interface ProcessedCV {
   contractPeriod?: string
   position?: string
   passportNumber?: string
+  passportIssueDate?: string
   passportExpiryDate?: string
   passportIssuePlace?: string
   nationality?: string
@@ -76,6 +81,7 @@ interface ProcessedCV {
   age?: number
   englishLevel?: 'YES' | 'NO' | 'WILLING'
   arabicLevel?: 'YES' | 'NO' | 'WILLING'
+  educationLevel?: string
   babySitting?: 'YES' | 'NO' | 'WILLING'
   childrenCare?: 'YES' | 'NO' | 'WILLING'
   tutoring?: 'YES' | 'NO' | 'WILLING'
@@ -86,6 +92,9 @@ interface ProcessedCV {
   arabicCooking?: 'YES' | 'NO' | 'WILLING'
   sewing?: 'YES' | 'NO' | 'WILLING'
   driving?: 'YES' | 'NO' | 'WILLING'
+  elderCare?: 'YES' | 'NO' | 'WILLING'
+  housekeeping?: 'YES' | 'NO' | 'WILLING'
+  cooking?: 'YES' | 'NO' | 'WILLING'
   experience?: string
   education?: string
   skills?: string

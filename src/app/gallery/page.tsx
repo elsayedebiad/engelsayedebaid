@@ -94,9 +94,8 @@ export default function GalleryPage() {
         throw new Error('Failed to fetch CVs')
       }
       const data = await response.json()
-      // فلترة السير التي لديها صور فقط
-      const cvsWithImages = data.filter((cv: CV) => cv.profileImage)
-      setCvs(cvsWithImages)
+      // عرض جميع السير الذاتية (مع أو بدون صور)
+      setCvs(data)
     } catch (error) {
       toast.error('فشل في تحميل السير الذاتية')
     } finally {
