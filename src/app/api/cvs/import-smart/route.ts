@@ -155,7 +155,7 @@ const normalizePriority = (value?: string): 'HIGH' | 'MEDIUM' | 'LOW' => {
 // Helper function to check for duplicate CVs
 const checkForDuplicates = async (cv: ProcessedCV) => {
   try {
-    // الأولوية الأولى: رقم جواز السفر (مطابقة تامة)
+    // فحص التكرار بناءً على رقم جواز السفر فقط
     if (cv.passportNumber && cv.passportNumber.trim()) {
       const existingByPassport = await prisma.cV.findFirst({
         where: { passportNumber: cv.passportNumber.trim() }
@@ -169,85 +169,7 @@ const checkForDuplicates = async (cv: ProcessedCV) => {
       }
     }
 
-    // الأولوية الثانية: الاسم الكامل + تاريخ الميلاد (مطابقة مزدوجة)
-    if (cv.fullName && cv.fullName.trim() && cv.dateOfBirth && cv.dateOfBirth.trim()) {
-      const existingByNameAndBirth = await prisma.cV.findFirst({
-        where: { 
-          AND: [
-            { fullName: { equals: cv.fullName.trim(), mode: 'insensitive' } },
-            { dateOfBirth: cv.dateOfBirth.trim() }
-          ]
-        }
-      })
-      if (existingByNameAndBirth) {
-        return { 
-          isDuplicate: true, 
-          existingId: existingByNameAndBirth.id, 
-          reason: 'الاسم الكامل وتاريخ الميلاد مطابقان' 
-        }
-      }
-    }
-
-    // الأولوية الثالثة: الاسم الكامل فقط (مطابقة تامة)
-    if (cv.fullName && cv.fullName.trim()) {
-      const existingByName = await prisma.cV.findFirst({
-        where: { fullName: { equals: cv.fullName.trim(), mode: 'insensitive' } }
-      })
-      if (existingByName) {
-        return { 
-          isDuplicate: true, 
-          existingId: existingByName.id, 
-          reason: 'الاسم الكامل مطابق' 
-        }
-      }
-    }
-
-    // الأولوية الرابعة: الاسم العربي + تاريخ الميلاد (إذا كان متوفراً)
-    if (cv.fullNameArabic && cv.fullNameArabic.trim() && cv.dateOfBirth && cv.dateOfBirth.trim()) {
-      const existingByArabicNameAndBirth = await prisma.cV.findFirst({
-        where: { 
-          AND: [
-            { fullNameArabic: { equals: cv.fullNameArabic.trim(), mode: 'insensitive' } },
-            { dateOfBirth: cv.dateOfBirth.trim() }
-          ]
-        }
-      })
-      if (existingByArabicNameAndBirth) {
-        return { 
-          isDuplicate: true, 
-          existingId: existingByArabicNameAndBirth.id, 
-          reason: 'الاسم العربي وتاريخ الميلاد مطابقان' 
-        }
-      }
-    }
-
-    // الأولوية الخامسة: تاريخ الميلاد + اسم مشابه (مطابقة تقريبية)
-    if (cv.dateOfBirth && cv.dateOfBirth.trim() && cv.fullName && cv.fullName.trim()) {
-      const orConditions = [
-        { fullName: { contains: cv.fullName.trim(), mode: 'insensitive' } }
-      ]
-      
-      if (cv.fullNameArabic && cv.fullNameArabic.trim()) {
-        orConditions.push({ fullNameArabic: { contains: cv.fullNameArabic.trim(), mode: 'insensitive' } })
-      }
-
-      const existingByBirthAndSimilarName = await prisma.cV.findFirst({
-        where: { 
-          AND: [
-            { dateOfBirth: cv.dateOfBirth.trim() },
-            { OR: orConditions }
-          ]
-        }
-      })
-      if (existingByBirthAndSimilarName) {
-        return { 
-          isDuplicate: true, 
-          existingId: existingByBirthAndSimilarName.id, 
-          reason: 'تاريخ الميلاد واسم مشابه' 
-        }
-      }
-    }
-
+    // إذا لم يكن هناك رقم جواز، فلا يوجد تكرار
     return { isDuplicate: false }
   } catch (error) {
     console.error('Error checking duplicates:', error)
