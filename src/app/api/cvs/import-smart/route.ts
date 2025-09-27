@@ -201,7 +201,7 @@ const checkForDuplicates = async (cv: ProcessedCV, processedPassports: Set<strin
   try {
     // فحص التكرار بناءً على رقم جواز السفر فقط
     if (cv.passportNumber && cv.passportNumber.trim()) {
-      const passportNumber = cv.passportNumber.trim()
+      const passportNumber = cv.passportNumber.trim().toUpperCase() // تحويل إلى أحرف كبيرة للمقارنة
       
       // فحص التكرار في نفس الملف المرفوع
       if (processedPassports.has(passportNumber)) {
@@ -212,23 +212,62 @@ const checkForDuplicates = async (cv: ProcessedCV, processedPassports: Set<strin
         }
       }
       
-      // فحص التكرار في قاعدة البيانات
+      // فحص التكرار في قاعدة البيانات باستخدام البحث الغير حساس للحالة
       const existingByPassport = await prisma.cV.findFirst({
-        where: { passportNumber: passportNumber }
+        where: { 
+          passportNumber: {
+            equals: passportNumber,
+            mode: 'insensitive'
+          }
+        },
+        select: {
+          id: true,
+          fullName: true,
+          passportNumber: true
+        }
       })
+      
       if (existingByPassport) {
+        console.log(`تم العثور على تكرار: ${cv.fullName} (${passportNumber}) موجود مسبقاً باسم ${existingByPassport.fullName} (ID: ${existingByPassport.id})`)
         return { 
           isDuplicate: true, 
-          existingId: existingByPassport.id, // This is a string (cuid), not number
-          reason: 'رقم جواز السفر موجود مسبقاً في قاعدة البيانات' 
+          existingId: existingByPassport.id, // This is an Int from schema
+          reason: `رقم جواز السفر موجود مسبقاً في قاعدة البيانات للشخص: ${existingByPassport.fullName}` 
         }
       }
       
       // إضافة رقم الجواز إلى المعالجة
       processedPassports.add(passportNumber)
+    } else {
+      // إذا لم يكن هناك رقم جواز، تحقق من الاسم الكامل كحل احتياطي
+      if (cv.fullName && cv.fullName.trim()) {
+        const fullName = cv.fullName.trim()
+        const existingByName = await prisma.cV.findFirst({
+          where: { 
+            fullName: {
+              equals: fullName,
+              mode: 'insensitive'
+            }
+          },
+          select: {
+            id: true,
+            fullName: true,
+            passportNumber: true
+          }
+        })
+        
+        if (existingByName) {
+          console.log(`تم العثور على تكرار بالاسم: ${cv.fullName} موجود مسبقاً (ID: ${existingByName.id})`)
+          return { 
+            isDuplicate: true, 
+            existingId: existingByName.id,
+            reason: `الاسم الكامل موجود مسبقاً في قاعدة البيانات (لا يوجد رقم جواز)` 
+          }
+        }
+      }
     }
 
-    // إذا لم يكن هناك رقم جواز، فلا يوجد تكرار
+    // إذا لم يكن هناك تكرار
     return { isDuplicate: false }
   } catch (error) {
     console.error('Error checking duplicates:', error)
@@ -282,11 +321,11 @@ const processExcelRow = (row: ExcelRow, rowNumber: number): ProcessedCV => {
       fullNameArabic: cleanStringValue(row['الاسم بالعربية']),
       email: cleanStringValue(row['البريد الإلكتروني']),
       phone: cleanPhoneNumber(row['رقم الهاتف']),
-      referenceCode: cleanStringValue(row['رمز المرجع']),
+      referenceCode: cleanStringValue(row['الكود المرجعي']),
       monthlySalary: cleanStringValue(row['الراتب الشهري']),
-      contractPeriod: cleanStringValue(row['فترة العقد']),
-      position: cleanStringValue(row['المنصب']),
-      passportNumber: cleanStringValue(row['رقم جواز السفر']),
+      contractPeriod: cleanStringValue(row['مدة العقد']),
+      position: cleanStringValue(row['الوظيفة المطلوبة']),
+      passportNumber: cleanStringValue(row['رقم الجواز']),
       passportIssueDate: cleanDateValue(row['تاريخ إصدار الجواز']),
       passportExpiryDate: cleanDateValue(row['تاريخ انتهاء الجواز']),
       passportIssuePlace: cleanStringValue(row['مكان إصدار الجواز']),
@@ -301,24 +340,28 @@ const processExcelRow = (row: ExcelRow, rowNumber: number): ProcessedCV => {
       height: cleanStringValue(row['الطول']),
       complexion: cleanStringValue(row['لون البشرة']),
       age: cleanNumberValue(row['العمر']),
-      englishLevel: normalizeSkillLevel(row['مستوى الإنجليزية']),
-      arabicLevel: normalizeSkillLevel(row['مستوى العربية']),
+      englishLevel: normalizeSkillLevel(row['الإنجليزية']),
+      arabicLevel: normalizeSkillLevel(row['العربية']),
+      educationLevel: cleanStringValue(row['الدرجة العلمية']),
       babySitting: normalizeSkillLevel(row['رعاية الأطفال']),
-      childrenCare: normalizeSkillLevel(row['رعاية الأطفال المتقدمة']),
-      tutoring: normalizeSkillLevel(row['التدريس']),
-      disabledCare: normalizeSkillLevel(row['رعاية ذوي الاحتياجات الخاصة']),
+      childrenCare: normalizeSkillLevel(row['رعاية الأطفال']),
+      tutoring: normalizeSkillLevel(row['تعليم الأطفال']),
+      disabledCare: normalizeSkillLevel(row['رعاية المعوقين']),
       cleaning: normalizeSkillLevel(row['التنظيف']),
       washing: normalizeSkillLevel(row['الغسيل']),
-      ironing: normalizeSkillLevel(row['الكي']),
+      ironing: normalizeSkillLevel(row['كي الملابس']),
       arabicCooking: normalizeSkillLevel(row['الطبخ العربي']),
       sewing: normalizeSkillLevel(row['الخياطة']),
       driving: normalizeSkillLevel(row['القيادة']),
-      experience: row['الخبرة'],
-      education: row['التعليم'],
-      skills: row['المهارات'],
-      summary: row['الملخص'],
+      elderCare: normalizeSkillLevel(row['رعاية المسنين']),
+      housekeeping: normalizeSkillLevel(row['التدبير المنزلي']),
+      cooking: normalizeSkillLevel(row['الطبخ']),
+      experience: cleanStringValue(row['الخبرة في الخارج']),
+      education: cleanStringValue(row['التعليم']),
+      skills: cleanStringValue(row['المهارات']),
+      summary: cleanStringValue(row['الملخص']),
       priority: normalizePriority(row['الأولوية']),
-      notes: row['ملاحظات'],
+      notes: cleanStringValue(row['ملاحظات']),
       isUpdate: false,
       profileImage: cleanStringValue(row['الصورة الشخصية']) // Process profile image
     }
@@ -443,6 +486,8 @@ export async function POST(request: NextRequest) {
         // Check for duplicates
         const duplicateCheck = await checkForDuplicates(cv, processedPassports)
         
+        console.log(`الصف ${cv.rowNumber}: ${cv.fullName} - رقم الجواز: ${cv.passportNumber || 'غير محدد'} - تكرار: ${duplicateCheck.isDuplicate ? 'نعم' : 'لا'}`)
+        
         if (duplicateCheck.isDuplicate) {
           cv.duplicateReason = duplicateCheck.reason
           
@@ -452,15 +497,18 @@ export async function POST(request: NextRequest) {
             cv.existingId = duplicateCheck.existingId
             results.details.updatedCVs.push(cv)
             results.updatedRecords++
+            console.log(`✅ سيتم تحديث السجل الموجود (ID: ${duplicateCheck.existingId})`)
           } else {
             // تكرار داخل نفس الملف - تجاهل
             cv.isUpdate = false
             results.details.skippedCVs.push(cv)
             results.skippedRecords++
+            console.log(`⚠️ تم تخطي السجل (تكرار في نفس الملف)`)
           }
         } else {
           results.details.newCVs.push(cv)
           results.newRecords++
+          console.log(`✅ سجل جديد سيتم إضافته`)
         }
       } catch (error) {
         const errorCV: ProcessedCV = {
@@ -477,24 +525,76 @@ export async function POST(request: NextRequest) {
     // If action is 'execute', perform the actual import/update
     if (action === 'execute') {
       const errors: string[] = []
+      
+      console.log(`🚀 بدء تنفيذ الاستيراد: ${results.newRecords} جديد، ${results.updatedRecords} تحديث`)
 
       // Insert new records
       for (const cv of results.details.newCVs) {
         try {
+          console.log(`📝 إنشاء سجل جديد: ${cv.fullName} (الصف ${cv.rowNumber})`)
+          
           // Handle image URL download
           let finalProfileImage = cleanStringValue(cv.profileImage)
           if (finalProfileImage) {
+            console.log(`🖼️ محاولة تحميل صورة من: ${finalProfileImage}`)
             const downloadedPath = await downloadImage(finalProfileImage)
             if (downloadedPath) {
               finalProfileImage = downloadedPath
+              console.log(`✅ تم تحميل الصورة إلى: ${finalProfileImage}`)
+            } else {
+              console.log(`❌ فشل في تحميل الصورة`)
             }
           }
         
           await prisma.cV.create({
               data: {
-                ...cv,
-                profileImage: finalProfileImage || null,
+                fullName: cv.fullName,
+                fullNameArabic: cv.fullNameArabic || null,
+                email: cv.email || null,
+                phone: cv.phone || null,
+                referenceCode: cv.referenceCode || null,
+                monthlySalary: cv.monthlySalary || null,
+                contractPeriod: cv.contractPeriod || null,
+                position: cv.position || null,
                 passportNumber: cv.passportNumber && cv.passportNumber.trim() ? cv.passportNumber.trim() : null,
+                passportIssueDate: cv.passportIssueDate || null,
+                passportExpiryDate: cv.passportExpiryDate || null,
+                passportIssuePlace: cv.passportIssuePlace || null,
+                nationality: cv.nationality || null,
+                religion: cv.religion || null,
+                dateOfBirth: cv.dateOfBirth || null,
+                placeOfBirth: cv.placeOfBirth || null,
+                livingTown: cv.livingTown || null,
+                maritalStatus: cv.maritalStatus || null,
+                numberOfChildren: cv.numberOfChildren || null,
+                weight: cv.weight || null,
+                height: cv.height || null,
+                complexion: cv.complexion || null,
+                age: cv.age || null,
+                englishLevel: cv.englishLevel || null,
+                arabicLevel: cv.arabicLevel || null,
+                educationLevel: cv.educationLevel || null,
+                babySitting: cv.babySitting || null,
+                childrenCare: cv.childrenCare || null,
+                tutoring: cv.tutoring || null,
+                disabledCare: cv.disabledCare || null,
+                cleaning: cv.cleaning || null,
+                washing: cv.washing || null,
+                ironing: cv.ironing || null,
+                arabicCooking: cv.arabicCooking || null,
+                sewing: cv.sewing || null,
+                driving: cv.driving || null,
+                elderCare: cv.elderCare || null,
+                housekeeping: cv.housekeeping || null,
+                cooking: cv.cooking || null,
+                experience: cv.experience || null,
+                education: cv.education || null,
+                skills: cv.skills || null,
+                summary: cv.summary || null,
+                notes: cv.notes || null,
+                priority: cv.priority || 'MEDIUM',
+                profileImage: finalProfileImage || null,
+                source: 'Excel Smart Import',
                 createdById: userId,
                 updatedById: userId
               }
@@ -519,21 +619,70 @@ export async function POST(request: NextRequest) {
       for (const cv of results.details.updatedCVs) {
         if (cv.existingId) {
           try {
+            console.log(`🔄 تحديث سجل موجود: ${cv.fullName} (ID: ${cv.existingId}, الصف ${cv.rowNumber})`)
+            
             // Handle image URL download
             let finalProfileImage = cleanStringValue(cv.profileImage)
             if (finalProfileImage) {
+              console.log(`🖼️ محاولة تحميل صورة من: ${finalProfileImage}`)
               const downloadedPath = await downloadImage(finalProfileImage)
               if (downloadedPath) {
                 finalProfileImage = downloadedPath
+                console.log(`✅ تم تحميل الصورة إلى: ${finalProfileImage}`)
+              } else {
+                console.log(`❌ فشل في تحميل الصورة`)
               }
             }
           
             await prisma.cV.update({
                 where: { id: cv.existingId },
                 data: {
-                  ...cv,
-                  profileImage: finalProfileImage || null,
+                  fullName: cv.fullName,
+                  fullNameArabic: cv.fullNameArabic || null,
+                  email: cv.email || null,
+                  phone: cv.phone || null,
+                  referenceCode: cv.referenceCode || null,
+                  monthlySalary: cv.monthlySalary || null,
+                  contractPeriod: cv.contractPeriod || null,
+                  position: cv.position || null,
                   passportNumber: cv.passportNumber && cv.passportNumber.trim() ? cv.passportNumber.trim() : null,
+                  passportIssueDate: cv.passportIssueDate || null,
+                  passportExpiryDate: cv.passportExpiryDate || null,
+                  passportIssuePlace: cv.passportIssuePlace || null,
+                  nationality: cv.nationality || null,
+                  religion: cv.religion || null,
+                  dateOfBirth: cv.dateOfBirth || null,
+                  placeOfBirth: cv.placeOfBirth || null,
+                  livingTown: cv.livingTown || null,
+                  maritalStatus: cv.maritalStatus || null,
+                  numberOfChildren: cv.numberOfChildren || null,
+                  weight: cv.weight || null,
+                  height: cv.height || null,
+                  complexion: cv.complexion || null,
+                  age: cv.age || null,
+                  englishLevel: cv.englishLevel || null,
+                  arabicLevel: cv.arabicLevel || null,
+                  educationLevel: cv.educationLevel || null,
+                  babySitting: cv.babySitting || null,
+                  childrenCare: cv.childrenCare || null,
+                  tutoring: cv.tutoring || null,
+                  disabledCare: cv.disabledCare || null,
+                  cleaning: cv.cleaning || null,
+                  washing: cv.washing || null,
+                  ironing: cv.ironing || null,
+                  arabicCooking: cv.arabicCooking || null,
+                  sewing: cv.sewing || null,
+                  driving: cv.driving || null,
+                  elderCare: cv.elderCare || null,
+                  housekeeping: cv.housekeeping || null,
+                  cooking: cv.cooking || null,
+                  experience: cv.experience || null,
+                  education: cv.education || null,
+                  skills: cv.skills || null,
+                  summary: cv.summary || null,
+                  notes: cv.notes || null,
+                  priority: cv.priority || 'MEDIUM',
+                  profileImage: finalProfileImage || null,
                   updatedById: userId
                 }
               })
