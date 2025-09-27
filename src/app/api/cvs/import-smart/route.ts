@@ -153,20 +153,35 @@ const normalizePriority = (value?: string): 'HIGH' | 'MEDIUM' | 'LOW' => {
 }
 
 // Helper function to check for duplicate CVs
-const checkForDuplicates = async (cv: ProcessedCV) => {
+const checkForDuplicates = async (cv: ProcessedCV, processedPassports: Set<string>) => {
   try {
     // فحص التكرار بناءً على رقم جواز السفر فقط
     if (cv.passportNumber && cv.passportNumber.trim()) {
+      const passportNumber = cv.passportNumber.trim()
+      
+      // فحص التكرار في نفس الملف المرفوع
+      if (processedPassports.has(passportNumber)) {
+        return { 
+          isDuplicate: true, 
+          existingId: null, 
+          reason: 'رقم جواز السفر مكرر في نفس الملف' 
+        }
+      }
+      
+      // فحص التكرار في قاعدة البيانات
       const existingByPassport = await prisma.cV.findFirst({
-        where: { passportNumber: cv.passportNumber.trim() }
+        where: { passportNumber: passportNumber }
       })
       if (existingByPassport) {
         return { 
           isDuplicate: true, 
           existingId: existingByPassport.id, 
-          reason: 'رقم جواز السفر مطابق' 
+          reason: 'رقم جواز السفر موجود مسبقاً في قاعدة البيانات' 
         }
       }
+      
+      // إضافة رقم الجواز إلى المعالجة
+      processedPassports.add(passportNumber)
     }
 
     // إذا لم يكن هناك رقم جواز، فلا يوجد تكرار
@@ -364,6 +379,9 @@ export async function POST(request: NextRequest) {
       summary: ''
     }
 
+    // مجموعة لتتبع أرقام الجوازات المعالجة في نفس الملف
+    const processedPassports = new Set<string>()
+
     // Analyze each row for duplicates
     for (let i = 0; i < jsonData.length; i++) {
       try {
@@ -378,14 +396,23 @@ export async function POST(request: NextRequest) {
         }
 
         // Check for duplicates
-        const duplicateCheck = await checkForDuplicates(cv)
+        const duplicateCheck = await checkForDuplicates(cv, processedPassports)
         
         if (duplicateCheck.isDuplicate) {
-          cv.isUpdate = true
-          cv.existingId = duplicateCheck.existingId
           cv.duplicateReason = duplicateCheck.reason
-          results.details.updatedCVs.push(cv)
-          results.updatedRecords++
+          
+          if (duplicateCheck.existingId) {
+            // تكرار مع سجل موجود في قاعدة البيانات - يمكن تحديثه
+            cv.isUpdate = true
+            cv.existingId = duplicateCheck.existingId
+            results.details.updatedCVs.push(cv)
+            results.updatedRecords++
+          } else {
+            // تكرار داخل نفس الملف - تجاهل
+            cv.isUpdate = false
+            results.details.skippedCVs.push(cv)
+            results.skippedRecords++
+          }
         } else {
           results.details.newCVs.push(cv)
           results.newRecords++
@@ -419,7 +446,7 @@ export async function POST(request: NextRequest) {
                 monthlySalary: cv.monthlySalary || null,
                 contractPeriod: cv.contractPeriod || null,
                 position: cv.position || null,
-                passportNumber: cv.passportNumber || '',
+                passportNumber: cv.passportNumber && cv.passportNumber.trim() ? cv.passportNumber.trim() : null,
                 passportIssueDate: cv.passportIssueDate || null,
                 passportExpiryDate: cv.passportExpiryDate || null,
                 passportIssuePlace: cv.passportIssuePlace || null,
@@ -492,7 +519,7 @@ export async function POST(request: NextRequest) {
                   monthlySalary: cv.monthlySalary || null,
                   contractPeriod: cv.contractPeriod || null,
                   position: cv.position || null,
-                  passportNumber: cv.passportNumber || '',
+                  passportNumber: cv.passportNumber && cv.passportNumber.trim() ? cv.passportNumber.trim() : null,
                   passportIssueDate: cv.passportIssueDate || null,
                   passportExpiryDate: cv.passportExpiryDate || null,
                   passportIssuePlace: cv.passportIssuePlace || null,
