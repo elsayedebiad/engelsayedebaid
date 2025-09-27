@@ -53,11 +53,25 @@ export default function BookedCVsPage() {
 
   const fetchBookedCVs = async () => {
     try {
-      const response = await fetch('/api/cvs')
+      const token = localStorage.getItem('token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch('/api/cvs?status=BOOKED', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
       if (response.ok) {
         const data = await response.json()
-        const bookedCVs = data.cvs.filter((cv: CV) => cv.status === CVStatus.BOOKED)
-        setCvs(bookedCVs)
+        setCvs(data.cvs || [])
+      } else if (response.status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        router.push('/login')
       } else {
         toast.error('فشل في تحميل السير الذاتية المحجوزة')
       }

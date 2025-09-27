@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { NotificationService } from '@/lib/notification-service'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { validateAuthFromRequest } from '@/lib/middleware-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const authResult = await validateAuthFromRequest(request)
     
-    if (!session?.user) {
+    if (!authResult.success) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
+    const { user } = authResult
+
     // التحقق من صلاحية المدير العام
-    if (session.user.role !== 'ADMIN') {
+    if (user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'صلاحيات غير كافية' }, { status: 403 })
     }
 
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type')
 
     const result = await NotificationService.getUserNotifications(
-      parseInt(session.user.id),
+      user.id,
       page,
       limit
     )
@@ -55,13 +56,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const authResult = await validateAuthFromRequest(request)
     
-    if (!session?.user) {
+    if (!authResult.success) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
-    if (session.user.role !== 'ADMIN') {
+    const { user } = authResult
+
+    if (user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'صلاحيات غير كافية' }, { status: 403 })
     }
 
@@ -72,18 +75,18 @@ export async function POST(request: NextRequest) {
         if (!notificationId) {
           return NextResponse.json({ error: 'معرف الإشعار مطلوب' }, { status: 400 })
         }
-        await NotificationService.markAsRead(notificationId, parseInt(session.user.id))
+        await NotificationService.markAsRead(notificationId, user.id)
         return NextResponse.json({ success: true })
 
       case 'markAllAsRead':
-        await NotificationService.markAllAsRead(parseInt(session.user.id))
+        await NotificationService.markAllAsRead(user.id)
         return NextResponse.json({ success: true })
 
       case 'delete':
         if (!notificationId) {
           return NextResponse.json({ error: 'معرف الإشعار مطلوب' }, { status: 400 })
         }
-        await NotificationService.deleteNotification(notificationId, parseInt(session.user.id))
+        await NotificationService.deleteNotification(notificationId, user.id)
         return NextResponse.json({ success: true })
 
       default:

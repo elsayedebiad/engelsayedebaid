@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
-        contract: true, // Include contract data
+        contracts: true, // Include contracts data
       },
       orderBy: {
         createdAt: 'desc',
