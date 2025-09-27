@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(excelBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename="قالب-السير-الذاتية-الشامل.xlsx"',
+        'Content-Disposition': 'attachment; filename="cv-template-complete.xlsx"; filename*=UTF-8\'\'%D9%82%D8%A7%D9%84%D8%A8-%D8%A7%D9%84%D8%B3%D9%8A%D8%B1-%D8%A7%D9%84%D8%B0%D8%A7%D8%AA%D9%8A%D8%A9-%D8%A7%D9%84%D8%B4%D8%A7%D9%85%D9%84.xlsx',
         'Content-Length': excelBuffer.length.toString(),
       },
     })
