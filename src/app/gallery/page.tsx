@@ -143,6 +143,70 @@ ${cv.fullNameArabic ? `🏷️ الاسم العربي: ${cv.fullNameArabic}` : 
     window.open(whatsappUrl, '_blank')
   }
 
+  const handleBulkDownload = async () => {
+    if (selectedCvs.length === 0) {
+      toast.error('يرجى تحديد سيرة ذاتية واحدة على الأقل للتحميل')
+      return
+    }
+
+    setIsDownloading(true)
+    let downloadedCount = 0
+
+    try {
+      const selectedCVsList = cvs.filter(cv => selectedCvs.includes(cv.id))
+
+      for (const cv of selectedCVsList) {
+        setCurrentDownloadName(cv.fullName || cv.referenceCode || 'السيرة الذاتية')
+        const toastId = toast.loading(
+          `جاري تحميل ${cv.fullName} (${downloadedCount + 1}/${selectedCVsList.length})`
+        )
+
+        try {
+          const blob = await createCvImage(cv)
+          if (blob) {
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `CV_${cv.fullName || cv.referenceCode || 'unknown'}.png`
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            URL.revokeObjectURL(url)
+            downloadedCount++
+            setDownloadProgress((downloadedCount / selectedCVsList.length) * 100)
+
+            // Update the toast with success
+            toast.success(
+              `تم تحميل ${cv.fullName} (${downloadedCount}/${selectedCVsList.length})`,
+              { id: toastId }
+            )
+          }
+        } catch (error) {
+          console.error(`Error downloading image for ${cv.fullName}:`, error)
+          toast.error(
+            `فشل في تحميل ${cv.fullName}`,
+            { id: toastId }
+          )
+        }
+
+        // Add a small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 800))
+      }
+
+      if (downloadedCount > 0) {
+        toast.success(`تم تحميل ${downloadedCount} من الصور بنجاح`)
+        setSelectedCvs([]) // Clear selection after successful downloads
+      }
+    } catch (error) {
+      console.error('Error in bulk download:', error)
+      toast.error('فشل في تحميل الصور')
+    } finally {
+      setIsDownloading(false)
+      setDownloadProgress(0)
+      setCurrentDownloadName('')
+    }
+  }
+
   const toggleCvSelection = (cvId: string) => {
     setSelectedCvs(prev => 
       prev.includes(cvId) 
@@ -541,11 +605,34 @@ ${cv.fullNameArabic ? `🏷️ الاسم العربي: ${cv.fullNameArabic}` : 
                 </div>
                 
                 {selectedCvs.length > 0 && (
-                  <div className="bg-blue-100 px-3 py-2 rounded-lg">
-                    <span className="text-sm font-medium text-blue-700">
-                      {selectedCvs.length} محدد
-                    </span>
-                  </div>
+                  <>
+                    <div className="bg-blue-100 px-3 py-2 rounded-lg">
+                      <span className="text-sm font-medium text-blue-700">
+                        {selectedCvs.length} محدد
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <button
+                        onClick={handleBulkDownload}
+                        disabled={isDownloading}
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isDownloading ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        {isDownloading 
+                          ? `جاري تحميل ${currentDownloadName}` 
+                          : `تحميل ${selectedCvs.length} صور`
+                        }
+                      </button>
+                      {isDownloading && downloadProgress > 0 && (
+                        <div className="absolute left-0 bottom-0 h-1 bg-green-500 transition-all duration-300 rounded-b-lg" 
+                             style={{ width: `${downloadProgress}%` }} />
+                      )}
+                    </div>
+                  </>
                 )}
 
                 {isLoggedIn ? (
@@ -746,7 +833,7 @@ ${cv.fullNameArabic ? `🏷️ الاسم العربي: ${cv.fullNameArabic}` : 
               {filteredCvs.map((cv) => (
                 <div
                   key={cv.id}
-                  className={`bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 ${
+                  className={`bg-white rounded-lg shadow-lg border ${selectedCvs.includes(cv.id) ? 'border-blue-500 ring-2 ring-blue-500' : 'border-gray-200'} overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer ${
                     viewMode === 'list' ? 'flex items-center p-4' : ''
                   }`}
                 >
