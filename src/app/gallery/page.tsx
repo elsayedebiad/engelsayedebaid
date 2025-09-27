@@ -839,12 +839,49 @@ ${cv.fullNameArabic ? `🏷️ الاسم العربي: ${cv.fullNameArabic}` : 
                   {viewMode === 'grid' ? (
                     <>
                       {/* صورة السيرة الذاتية */}
-                      <div className="aspect-[3/4] relative overflow-hidden">
-                        <img
-                          src={cv.profileImage}
-                          alt={cv.fullName}
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="aspect-[3/4] relative overflow-hidden bg-gray-200">
+                        {cv.profileImage ? (
+                          <img
+                            src={cv.profileImage}
+                            alt={cv.fullName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // إذا فشل تحميل الصورة، استخدم صورة افتراضية
+                              const target = e.target as HTMLImageElement
+                              target.src = '/api/placeholder/avatar'
+                              target.onerror = () => {
+                                // إذا فشلت الصورة الافتراضية أيضاً، أخفي العنصر
+                                target.style.display = 'none'
+                                const parent = target.parentElement
+                                if (parent) {
+                                  parent.innerHTML = `
+                                    <div class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                      <div class="text-white text-center">
+                                        <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                                          <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                                          </svg>
+                                        </div>
+                                        <p class="text-sm font-medium">${cv.fullName}</p>
+                                      </div>
+                                    </div>
+                                  `
+                                }
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                            <div className="text-white text-center">
+                              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                              <p className="text-sm font-medium">{cv.fullName}</p>
+                            </div>
+                          </div>
+                        )}
                         <div className="absolute top-2 right-2">
                           <CountryFlag nationality={cv.nationality || ''} size="sm" />
                         </div>

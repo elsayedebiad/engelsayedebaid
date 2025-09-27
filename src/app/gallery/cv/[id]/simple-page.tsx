@@ -319,15 +319,35 @@ ${cv.fullNameArabic ? `📝 الاسم بالعربية: ${cv.fullNameArabic}` :
           {/* Profile Section */}
           <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-8">
             <div className="flex items-center gap-6">
-              {cv.profileImage && (
-                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg flex-shrink-0">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg flex-shrink-0 bg-white/20">
+                {cv.profileImage ? (
                   <img
                     src={cv.profileImage}
                     alt={cv.fullName}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'none'
+                      const parent = target.parentElement
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="w-full h-full bg-white/20 flex items-center justify-center">
+                            <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                            </svg>
+                          </div>
+                        `
+                      }
+                    }}
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-full bg-white/20 flex items-center justify-center">
+                    <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
+              </div>
               <div className="flex-1">
                 <h2 className="text-3xl font-bold mb-2">{cv.fullName}</h2>
                 {cv.fullNameArabic && cv.fullNameArabic !== cv.fullName && (

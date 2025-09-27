@@ -189,28 +189,49 @@ const AlqaeidTemplate: React.FC<AlqaeidTemplateProps> = ({ cv }) => {
           }} 
           className="w-full lg:w-1/3 text-white p-4 sm:p-6 lg:p-8 rounded-t-lg lg:rounded-t-none lg:rounded-r-lg flex flex-col items-center text-center shadow-xl"
         >
-          {cv.profileImage && (
-            <div className="flex flex-col items-center mb-4">
+          <div className="flex flex-col items-center mb-4">
+            {cv.profileImage ? (
               <img 
                 src={cv.profileImage} 
                 alt="Profile" 
                 className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 object-cover rounded-full border-4 border-white shadow-lg mb-3"
-              />
-              <ReactCountryFlag
-                countryCode={nationalityToCountryCode[cv.nationality || ''] || 'UN'}
-                svg
-                style={{
-                  width: '45px',
-                  height: '34px',
-                  borderRadius: '4px',
-                  border: '2px solid white',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'none'
+                  const parent = target.parentElement
+                  if (parent) {
+                    const placeholder = document.createElement('div')
+                    placeholder.className = "w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-white/20 rounded-full border-4 border-white shadow-lg mb-3 flex items-center justify-center"
+                    placeholder.innerHTML = `
+                      <svg class="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                      </svg>
+                    `
+                    parent.insertBefore(placeholder, target)
+                  }
                 }}
-                title={cv.nationality}
               />
-            </div>
-          )}
-          {!cv.profileImage && (
+            ) : (
+              <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-white/20 rounded-full border-4 border-white shadow-lg mb-3 flex items-center justify-center">
+                <svg className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+            <ReactCountryFlag
+              countryCode={nationalityToCountryCode[cv.nationality || ''] || 'UN'}
+              svg
+              style={{
+                width: '45px',
+                height: '34px',
+                borderRadius: '4px',
+                border: '2px solid white',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+              }}
+              title={cv.nationality}
+            />
+          </div>
+          {false && (
             <div className="flex flex-col items-center mb-4">
               <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-white/20 rounded-full border-4 border-white shadow-lg mb-3 flex items-center justify-center">
                 <User className="h-12 w-12 sm:h-16 sm:w-16 lg:h-20 lg:w-20 text-white/70" />
