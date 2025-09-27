@@ -94,6 +94,13 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
           adminOnly: true
         },
         {
+          id: 'smart-import',
+          label: 'الاستيراد الذكي',
+          icon: Sparkles,
+          href: '/dashboard/import-smart',
+          adminOnly: true
+        },
+        {
           id: 'google-sheets',
           label: 'Google Sheets',
           icon: FileSpreadsheet,

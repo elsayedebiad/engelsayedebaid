@@ -1,0 +1,586 @@
+import { NextRequest, NextResponse } from 'next/server'
+import * as XLSX from 'xlsx'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
+// Interface for Excel data
+interface ExcelRow {
+  'الاسم الكامل'?: string
+  'الاسم بالعربية'?: string
+  'البريد الإلكتروني'?: string
+  'رقم الهاتف'?: string
+  'رمز المرجع'?: string
+  'الراتب الشهري'?: string
+  'فترة العقد'?: string
+  'المنصب'?: string
+  'رقم جواز السفر'?: string
+  'تاريخ انتهاء الجواز'?: string
+  'مكان إصدار الجواز'?: string
+  'الجنسية'?: string
+  'الديانة'?: string
+  'تاريخ الميلاد'?: string
+  'مكان الميلاد'?: string
+  'مكان السكن'?: string
+  'الحالة الاجتماعية'?: string
+  'عدد الأطفال'?: string
+  'الوزن'?: string
+  'الطول'?: string
+  'لون البشرة'?: string
+  'العمر'?: string
+  'مستوى الإنجليزية'?: string
+  'مستوى العربية'?: string
+  'رعاية الأطفال'?: string
+  'رعاية الأطفال المتقدمة'?: string
+  'التدريس'?: string
+  'رعاية ذوي الاحتياجات الخاصة'?: string
+  'التنظيف'?: string
+  'الغسيل'?: string
+  'الكي'?: string
+  'الطبخ العربي'?: string
+  'الخياطة'?: string
+  'القيادة'?: string
+  'الخبرة'?: string
+  'التعليم'?: string
+  'المهارات'?: string
+  'الملخص'?: string
+  'الأولوية'?: string
+  'ملاحظات'?: string
+}
+
+// Interface for processed CV data
+interface ProcessedCV {
+  rowNumber: number
+  fullName: string
+  fullNameArabic?: string
+  email?: string
+  phone?: string
+  referenceCode?: string
+  monthlySalary?: string
+  contractPeriod?: string
+  position?: string
+  passportNumber?: string
+  passportExpiryDate?: string
+  passportIssuePlace?: string
+  nationality?: string
+  religion?: string
+  dateOfBirth?: string
+  placeOfBirth?: string
+  livingTown?: string
+  maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED'
+  numberOfChildren?: number
+  weight?: string
+  height?: string
+  complexion?: string
+  age?: number
+  englishLevel?: 'YES' | 'NO' | 'WILLING'
+  arabicLevel?: 'YES' | 'NO' | 'WILLING'
+  babySitting?: 'YES' | 'NO' | 'WILLING'
+  childrenCare?: 'YES' | 'NO' | 'WILLING'
+  tutoring?: 'YES' | 'NO' | 'WILLING'
+  disabledCare?: 'YES' | 'NO' | 'WILLING'
+  cleaning?: 'YES' | 'NO' | 'WILLING'
+  washing?: 'YES' | 'NO' | 'WILLING'
+  ironing?: 'YES' | 'NO' | 'WILLING'
+  arabicCooking?: 'YES' | 'NO' | 'WILLING'
+  sewing?: 'YES' | 'NO' | 'WILLING'
+  driving?: 'YES' | 'NO' | 'WILLING'
+  experience?: string
+  education?: string
+  skills?: string
+  summary?: string
+  priority?: 'HIGH' | 'MEDIUM' | 'LOW'
+  notes?: string
+  isUpdate: boolean
+  existingId?: number
+  duplicateReason?: string
+}
+
+// Interface for import results
+interface ImportResult {
+  totalRows: number
+  newRecords: number
+  updatedRecords: number
+  skippedRecords: number
+  errorRecords: number
+  details: {
+    newCVs: ProcessedCV[]
+    updatedCVs: ProcessedCV[]
+    skippedCVs: ProcessedCV[]
+    errorCVs: ProcessedCV[]
+  }
+  summary: string
+}
+
+// Helper function to normalize skill levels
+const normalizeSkillLevel = (value?: string): 'YES' | 'NO' | 'WILLING' | undefined => {
+  if (!value) return undefined
+  const normalized = value.toString().trim().toUpperCase()
+  if (normalized === 'YES' || normalized === 'نعم' || normalized === '1') return 'YES'
+  if (normalized === 'NO' || normalized === 'لا' || normalized === '0') return 'NO'
+  if (normalized === 'WILLING' || normalized === 'راغب' || normalized === 'مستعد') return 'WILLING'
+  return undefined
+}
+
+// Helper function to normalize marital status
+const normalizeMaritalStatus = (value?: string): 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | undefined => {
+  if (!value) return undefined
+  const normalized = value.toString().trim().toUpperCase()
+  if (normalized === 'SINGLE' || normalized === 'أعزب' || normalized === 'عزباء') return 'SINGLE'
+  if (normalized === 'MARRIED' || normalized === 'متزوج' || normalized === 'متزوجة') return 'MARRIED'
+  if (normalized === 'DIVORCED' || normalized === 'مطلق' || normalized === 'مطلقة') return 'DIVORCED'
+  if (normalized === 'WIDOWED' || normalized === 'أرمل' || normalized === 'أرملة') return 'WIDOWED'
+  return undefined
+}
+
+// Helper function to normalize priority
+const normalizePriority = (value?: string): 'HIGH' | 'MEDIUM' | 'LOW' => {
+  if (!value) return 'MEDIUM'
+  const normalized = value.toString().trim().toUpperCase()
+  if (normalized === 'HIGH' || normalized === 'عالية' || normalized === 'مرتفعة') return 'HIGH'
+  if (normalized === 'LOW' || normalized === 'منخفضة' || normalized === 'قليلة') return 'LOW'
+  return 'MEDIUM'
+}
+
+// Helper function to check for duplicate CVs
+const checkForDuplicates = async (cv: ProcessedCV) => {
+  try {
+    // الأولوية الأولى: رقم جواز السفر (مطابقة تامة)
+    if (cv.passportNumber && cv.passportNumber.trim()) {
+      const existingByPassport = await prisma.cV.findFirst({
+        where: { passportNumber: cv.passportNumber.trim() }
+      })
+      if (existingByPassport) {
+        return { 
+          isDuplicate: true, 
+          existingId: existingByPassport.id, 
+          reason: 'رقم جواز السفر مطابق' 
+        }
+      }
+    }
+
+    // الأولوية الثانية: الاسم الكامل + تاريخ الميلاد (مطابقة مزدوجة)
+    if (cv.fullName && cv.fullName.trim() && cv.dateOfBirth && cv.dateOfBirth.trim()) {
+      const existingByNameAndBirth = await prisma.cV.findFirst({
+        where: { 
+          AND: [
+            { fullName: { equals: cv.fullName.trim(), mode: 'insensitive' } },
+            { dateOfBirth: cv.dateOfBirth.trim() }
+          ]
+        }
+      })
+      if (existingByNameAndBirth) {
+        return { 
+          isDuplicate: true, 
+          existingId: existingByNameAndBirth.id, 
+          reason: 'الاسم الكامل وتاريخ الميلاد مطابقان' 
+        }
+      }
+    }
+
+    // الأولوية الثالثة: الاسم الكامل فقط (مطابقة تامة)
+    if (cv.fullName && cv.fullName.trim()) {
+      const existingByName = await prisma.cV.findFirst({
+        where: { fullName: { equals: cv.fullName.trim(), mode: 'insensitive' } }
+      })
+      if (existingByName) {
+        return { 
+          isDuplicate: true, 
+          existingId: existingByName.id, 
+          reason: 'الاسم الكامل مطابق' 
+        }
+      }
+    }
+
+    // الأولوية الرابعة: الاسم العربي + تاريخ الميلاد (إذا كان متوفراً)
+    if (cv.fullNameArabic && cv.fullNameArabic.trim() && cv.dateOfBirth && cv.dateOfBirth.trim()) {
+      const existingByArabicNameAndBirth = await prisma.cV.findFirst({
+        where: { 
+          AND: [
+            { fullNameArabic: { equals: cv.fullNameArabic.trim(), mode: 'insensitive' } },
+            { dateOfBirth: cv.dateOfBirth.trim() }
+          ]
+        }
+      })
+      if (existingByArabicNameAndBirth) {
+        return { 
+          isDuplicate: true, 
+          existingId: existingByArabicNameAndBirth.id, 
+          reason: 'الاسم العربي وتاريخ الميلاد مطابقان' 
+        }
+      }
+    }
+
+    // الأولوية الخامسة: تاريخ الميلاد + اسم مشابه (مطابقة تقريبية)
+    if (cv.dateOfBirth && cv.dateOfBirth.trim() && cv.fullName && cv.fullName.trim()) {
+      const orConditions = [
+        { fullName: { contains: cv.fullName.trim(), mode: 'insensitive' } }
+      ]
+      
+      if (cv.fullNameArabic && cv.fullNameArabic.trim()) {
+        orConditions.push({ fullNameArabic: { contains: cv.fullNameArabic.trim(), mode: 'insensitive' } })
+      }
+
+      const existingByBirthAndSimilarName = await prisma.cV.findFirst({
+        where: { 
+          AND: [
+            { dateOfBirth: cv.dateOfBirth.trim() },
+            { OR: orConditions }
+          ]
+        }
+      })
+      if (existingByBirthAndSimilarName) {
+        return { 
+          isDuplicate: true, 
+          existingId: existingByBirthAndSimilarName.id, 
+          reason: 'تاريخ الميلاد واسم مشابه' 
+        }
+      }
+    }
+
+    return { isDuplicate: false }
+  } catch (error) {
+    console.error('Error checking duplicates:', error)
+    return { isDuplicate: false }
+  }
+}
+
+// Process Excel row to CV object
+const processExcelRow = (row: ExcelRow, rowNumber: number): ProcessedCV => {
+  try {
+    return {
+      rowNumber,
+      fullName: row['الاسم الكامل'] || '',
+      fullNameArabic: row['الاسم بالعربية'],
+      email: row['البريد الإلكتروني'],
+      phone: row['رقم الهاتف'],
+      referenceCode: row['رمز المرجع'],
+      monthlySalary: row['الراتب الشهري'],
+      contractPeriod: row['فترة العقد'],
+      position: row['المنصب'],
+      passportNumber: row['رقم جواز السفر'],
+      passportExpiryDate: row['تاريخ انتهاء الجواز'],
+      passportIssuePlace: row['مكان إصدار الجواز'],
+      nationality: row['الجنسية'],
+      religion: row['الديانة'],
+      dateOfBirth: row['تاريخ الميلاد'],
+      placeOfBirth: row['مكان الميلاد'],
+      livingTown: row['مكان السكن'],
+      maritalStatus: normalizeMaritalStatus(row['الحالة الاجتماعية']),
+      numberOfChildren: row['عدد الأطفال'] ? parseInt(row['عدد الأطفال'].toString()) || undefined : undefined,
+      weight: row['الوزن'],
+      height: row['الطول'],
+      complexion: row['لون البشرة'],
+      age: row['العمر'] ? parseInt(row['العمر'].toString()) || undefined : undefined,
+      englishLevel: normalizeSkillLevel(row['مستوى الإنجليزية']),
+      arabicLevel: normalizeSkillLevel(row['مستوى العربية']),
+      babySitting: normalizeSkillLevel(row['رعاية الأطفال']),
+      childrenCare: normalizeSkillLevel(row['رعاية الأطفال المتقدمة']),
+      tutoring: normalizeSkillLevel(row['التدريس']),
+      disabledCare: normalizeSkillLevel(row['رعاية ذوي الاحتياجات الخاصة']),
+      cleaning: normalizeSkillLevel(row['التنظيف']),
+      washing: normalizeSkillLevel(row['الغسيل']),
+      ironing: normalizeSkillLevel(row['الكي']),
+      arabicCooking: normalizeSkillLevel(row['الطبخ العربي']),
+      sewing: normalizeSkillLevel(row['الخياطة']),
+      driving: normalizeSkillLevel(row['القيادة']),
+      experience: row['الخبرة'],
+      education: row['التعليم'],
+      skills: row['المهارات'],
+      summary: row['الملخص'],
+      priority: normalizePriority(row['الأولوية']),
+      notes: row['ملاحظات'],
+      isUpdate: false
+    }
+  } catch (error) {
+    console.error('Error processing row:', error)
+    throw error
+  }
+}
+
+// Safe database operation wrapper
+const safeDBOperation = async (operation: () => Promise<any>, errorMessage: string) => {
+  try {
+    return await operation()
+  } catch (error) {
+    console.error(errorMessage, error)
+    throw new Error(`${errorMessage}: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`)
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Authentication
+    const userIdString = request.headers.get('x-user-id')
+    const userRole = request.headers.get('x-user-role')
+
+    if (!userIdString) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
+    }
+
+    const userId = parseInt(userIdString, 10)
+    if (isNaN(userId)) {
+      return NextResponse.json({ error: 'معرف المستخدم غير صحيح' }, { status: 400 })
+    }
+
+    // Check permissions
+    if (userRole !== 'ADMIN' && userRole !== 'SUB_ADMIN') {
+      return NextResponse.json(
+        { error: 'صلاحيات غير كافية' },
+        { status: 403 }
+      )
+    }
+
+    const formData = await request.formData()
+    const file = formData.get('file') as File
+    const action = formData.get('action') as string || 'analyze'
+
+    if (!file) {
+      return NextResponse.json(
+        { error: 'لم يتم تحديد ملف' },
+        { status: 400 }
+      )
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv'
+    ]
+
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'نوع الملف غير صحيح. يرجى رفع ملف Excel (.xlsx, .xls) أو CSV' },
+        { status: 400 }
+      )
+    }
+
+    // Read and parse Excel file
+    let jsonData: ExcelRow[]
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'buffer' })
+      const sheetName = workbook.SheetNames[0]
+      const worksheet = workbook.Sheets[sheetName]
+      jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelRow[]
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'فشل في قراءة ملف Excel. تأكد من أن الملف غير تالف' },
+        { status: 400 }
+      )
+    }
+
+    if (jsonData.length === 0) {
+      return NextResponse.json(
+        { error: 'ملف Excel فارغ أو لا يحتوي على بيانات صحيحة' },
+        { status: 400 }
+      )
+    }
+
+    // Process each row
+    const results: ImportResult = {
+      totalRows: jsonData.length,
+      newRecords: 0,
+      updatedRecords: 0,
+      skippedRecords: 0,
+      errorRecords: 0,
+      details: {
+        newCVs: [],
+        updatedCVs: [],
+        skippedCVs: [],
+        errorCVs: []
+      },
+      summary: ''
+    }
+
+    // Analyze each row for duplicates
+    for (let i = 0; i < jsonData.length; i++) {
+      try {
+        const cv = processExcelRow(jsonData[i], i + 2) // +2 because Excel starts from row 1 and has header
+
+        // Skip empty rows
+        if (!cv.fullName || !cv.fullName.trim()) {
+          cv.duplicateReason = 'الصف فارغ - لا يحتوي على اسم'
+          results.details.skippedCVs.push(cv)
+          results.skippedRecords++
+          continue
+        }
+
+        // Check for duplicates
+        const duplicateCheck = await checkForDuplicates(cv)
+        
+        if (duplicateCheck.isDuplicate) {
+          cv.isUpdate = true
+          cv.existingId = duplicateCheck.existingId
+          cv.duplicateReason = duplicateCheck.reason
+          results.details.updatedCVs.push(cv)
+          results.updatedRecords++
+        } else {
+          results.details.newCVs.push(cv)
+          results.newRecords++
+        }
+      } catch (error) {
+        const errorCV: ProcessedCV = {
+          rowNumber: i + 2,
+          fullName: jsonData[i]['الاسم الكامل'] || `الصف ${i + 2}`,
+          isUpdate: false,
+          duplicateReason: `خطأ في معالجة البيانات: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`
+        }
+        results.details.errorCVs.push(errorCV)
+        results.errorRecords++
+      }
+    }
+
+    // If action is 'execute', perform the actual import/update
+    if (action === 'execute') {
+      const errors: string[] = []
+
+      // Insert new records
+      for (const cv of results.details.newCVs) {
+        try {
+          await safeDBOperation(
+            () => prisma.cV.create({
+              data: {
+                fullName: cv.fullName,
+                fullNameArabic: cv.fullNameArabic || null,
+                email: cv.email || null,
+                phone: cv.phone || null,
+                referenceCode: cv.referenceCode || null,
+                monthlySalary: cv.monthlySalary || null,
+                contractPeriod: cv.contractPeriod || null,
+                position: cv.position || null,
+                passportNumber: cv.passportNumber || '',
+                passportExpiryDate: cv.passportExpiryDate || null,
+                passportIssuePlace: cv.passportIssuePlace || null,
+                nationality: cv.nationality || null,
+                religion: cv.religion || null,
+                dateOfBirth: cv.dateOfBirth || null,
+                placeOfBirth: cv.placeOfBirth || null,
+                livingTown: cv.livingTown || null,
+                maritalStatus: cv.maritalStatus || null,
+                numberOfChildren: cv.numberOfChildren || null,
+                weight: cv.weight || null,
+                height: cv.height || null,
+                complexion: cv.complexion || null,
+                age: cv.age || null,
+                englishLevel: cv.englishLevel || null,
+                arabicLevel: cv.arabicLevel || null,
+                babySitting: cv.babySitting || null,
+                childrenCare: cv.childrenCare || null,
+                tutoring: cv.tutoring || null,
+                disabledCare: cv.disabledCare || null,
+                cleaning: cv.cleaning || null,
+                washing: cv.washing || null,
+                ironing: cv.ironing || null,
+                arabicCooking: cv.arabicCooking || null,
+                sewing: cv.sewing || null,
+                driving: cv.driving || null,
+                experience: cv.experience || null,
+                education: cv.education || null,
+                skills: cv.skills || null,
+                summary: cv.summary || null,
+                notes: cv.notes || null,
+                priority: cv.priority || 'MEDIUM',
+                source: 'Excel Smart Import',
+                createdById: userId,
+                updatedById: userId
+              }
+            }),
+            `فشل في إنشاء السيرة الذاتية للصف ${cv.rowNumber}`
+          )
+        } catch (error) {
+          errors.push(`الصف ${cv.rowNumber}: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`)
+        }
+      }
+
+      // Update existing records
+      for (const cv of results.details.updatedCVs) {
+        if (cv.existingId) {
+          try {
+            await safeDBOperation(
+              () => prisma.cV.update({
+                where: { id: cv.existingId },
+                data: {
+                  fullName: cv.fullName,
+                  fullNameArabic: cv.fullNameArabic || null,
+                  email: cv.email || null,
+                  phone: cv.phone || null,
+                  referenceCode: cv.referenceCode || null,
+                  monthlySalary: cv.monthlySalary || null,
+                  contractPeriod: cv.contractPeriod || null,
+                  position: cv.position || null,
+                  passportNumber: cv.passportNumber || '',
+                  passportExpiryDate: cv.passportExpiryDate || null,
+                  passportIssuePlace: cv.passportIssuePlace || null,
+                  nationality: cv.nationality || null,
+                  religion: cv.religion || null,
+                  dateOfBirth: cv.dateOfBirth || null,
+                  placeOfBirth: cv.placeOfBirth || null,
+                  livingTown: cv.livingTown || null,
+                  maritalStatus: cv.maritalStatus || null,
+                  numberOfChildren: cv.numberOfChildren || null,
+                  weight: cv.weight || null,
+                  height: cv.height || null,
+                  complexion: cv.complexion || null,
+                  age: cv.age || null,
+                  englishLevel: cv.englishLevel || null,
+                  arabicLevel: cv.arabicLevel || null,
+                  babySitting: cv.babySitting || null,
+                  childrenCare: cv.childrenCare || null,
+                  tutoring: cv.tutoring || null,
+                  disabledCare: cv.disabledCare || null,
+                  cleaning: cv.cleaning || null,
+                  washing: cv.washing || null,
+                  ironing: cv.ironing || null,
+                  arabicCooking: cv.arabicCooking || null,
+                  sewing: cv.sewing || null,
+                  driving: cv.driving || null,
+                  experience: cv.experience || null,
+                  education: cv.education || null,
+                  skills: cv.skills || null,
+                  summary: cv.summary || null,
+                  notes: cv.notes || null,
+                  priority: cv.priority || 'MEDIUM',
+                  updatedById: userId
+                }
+              }),
+              `فشل في تحديث السيرة الذاتية للصف ${cv.rowNumber}`
+            )
+          } catch (error) {
+            errors.push(`الصف ${cv.rowNumber}: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`)
+          }
+        }
+      }
+
+      // If there were errors during execution, include them in the response
+      if (errors.length > 0) {
+        results.summary += ` - أخطاء في التنفيذ: ${errors.length}`
+        return NextResponse.json({
+          ...results,
+          executionErrors: errors,
+          warning: 'تم تنفيذ بعض العمليات بنجاح مع وجود أخطاء'
+        })
+      }
+    }
+
+    // Generate summary
+    results.summary = `تم تحليل ${results.totalRows} صف: ${results.newRecords} جديد، ${results.updatedRecords} تحديث، ${results.skippedRecords} تم تخطيه، ${results.errorRecords} خطأ`
+
+    return NextResponse.json(results)
+
+  } catch (error) {
+    console.error('خطأ في استيراد البيانات الذكي:', error)
+    return NextResponse.json(
+      { 
+        error: 'حدث خطأ أثناء معالجة الملف',
+        details: error instanceof Error ? error.message : 'خطأ غير معروف',
+        suggestion: 'تأكد من أن الملف يحتوي على البيانات الصحيحة والأعمدة المطلوبة'
+      },
+      { status: 500 }
+    )
+  } finally {
+    // Clean up Prisma connection
+    await prisma.$disconnect()
+  }
+}
