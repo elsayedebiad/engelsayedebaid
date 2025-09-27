@@ -345,6 +345,8 @@ export default function SmartImportPage() {
               </h1>
               <p className="text-gray-600">
                 نظام متقدم لمراجعة وتحديث البيانات تلقائياً - مقارنة بناءً على: رقم الجواز فقط
+                <br />
+                <span className="text-sm text-blue-600 font-semibold">ميزة جديدة: يمكنك الآن وضع روابط صور (URLs) في عمود الصورة الشخصية وسيتم تحميلها تلقائياً.</span>
               </p>
             </div>
             <button

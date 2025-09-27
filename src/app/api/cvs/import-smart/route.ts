@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { PrismaClient } from '@prisma/client'
 import { NotificationService } from '@/lib/notification-service'
+import { writeFile, mkdir } from 'fs/promises'
+import { join } from 'path'
+import { existsSync } from 'fs'
 
 const prisma = new PrismaClient()
 
@@ -104,6 +107,7 @@ interface ProcessedCV {
   isUpdate: boolean
   existingId?: number
   duplicateReason?: string
+  profileImage?: string // Added for image handling
 }
 
 // Interface for import results
@@ -151,6 +155,46 @@ const normalizePriority = (value?: string): 'HIGH' | 'MEDIUM' | 'LOW' => {
   if (normalized === 'LOW' || normalized === 'منخفضة' || normalized === 'قليلة') return 'LOW'
   return 'MEDIUM'
 }
+
+// Helper function to download and save an image from a URL
+const downloadImage = async (imageUrl: string): Promise<string | null> => {
+  if (!imageUrl || (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://'))) {
+    return null
+  }
+
+  try {
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      console.error(`Failed to fetch image: ${response.statusText}`)
+      return null
+    }
+
+    const contentType = response.headers.get('content-type')
+    if (!contentType || !contentType.startsWith('image/')) {
+      console.error('URL does not point to a valid image')
+      return null
+    }
+
+    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'images')
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true })
+    }
+
+    const timestamp = Date.now()
+    const extension = contentType.split('/')[1] || 'jpg'
+    const filename = `${timestamp}_imported.${extension}`
+    const filepath = join(uploadsDir, filename)
+
+    const buffer = Buffer.from(await response.arrayBuffer())
+    await writeFile(filepath, buffer)
+
+    return `/uploads/images/${filename}`
+  } catch (error) {
+    console.error(`Error downloading image from ${imageUrl}:`, error)
+    return null
+  }
+}
+
 
 // Helper function to check for duplicate CVs
 const checkForDuplicates = async (cv: ProcessedCV, processedPassports: Set<string>) => {
@@ -275,7 +319,8 @@ const processExcelRow = (row: ExcelRow, rowNumber: number): ProcessedCV => {
       summary: row['الملخص'],
       priority: normalizePriority(row['الأولوية']),
       notes: row['ملاحظات'],
-      isUpdate: false
+      isUpdate: false,
+      profileImage: cleanStringValue(row['الصورة الشخصية']) // Process profile image
     }
   } catch (error) {
     console.error('Error processing row:', error)
@@ -436,54 +481,20 @@ export async function POST(request: NextRequest) {
       // Insert new records
       for (const cv of results.details.newCVs) {
         try {
+          // Handle image URL download
+          let finalProfileImage = cleanStringValue(cv.profileImage)
+          if (finalProfileImage) {
+            const downloadedPath = await downloadImage(finalProfileImage)
+            if (downloadedPath) {
+              finalProfileImage = downloadedPath
+            }
+          }
+        
           await prisma.cV.create({
               data: {
-                fullName: cv.fullName,
-                fullNameArabic: cv.fullNameArabic || null,
-                email: cv.email || null,
-                phone: cv.phone || null,
-                referenceCode: cv.referenceCode || null,
-                monthlySalary: cv.monthlySalary || null,
-                contractPeriod: cv.contractPeriod || null,
-                position: cv.position || null,
+                ...cv,
+                profileImage: finalProfileImage || null,
                 passportNumber: cv.passportNumber && cv.passportNumber.trim() ? cv.passportNumber.trim() : null,
-                passportIssueDate: cv.passportIssueDate || null,
-                passportExpiryDate: cv.passportExpiryDate || null,
-                passportIssuePlace: cv.passportIssuePlace || null,
-                nationality: cv.nationality || null,
-                religion: cv.religion || null,
-                dateOfBirth: cv.dateOfBirth || null,
-                placeOfBirth: cv.placeOfBirth || null,
-                livingTown: cv.livingTown || null,
-                maritalStatus: cv.maritalStatus || null,
-                numberOfChildren: cv.numberOfChildren || null,
-                weight: cv.weight || null,
-                height: cv.height || null,
-                complexion: cv.complexion || null,
-                age: cv.age || null,
-                englishLevel: cv.englishLevel || null,
-                arabicLevel: cv.arabicLevel || null,
-                educationLevel: cv.educationLevel || null,
-                babySitting: cv.babySitting || null,
-                childrenCare: cv.childrenCare || null,
-                tutoring: cv.tutoring || null,
-                disabledCare: cv.disabledCare || null,
-                cleaning: cv.cleaning || null,
-                washing: cv.washing || null,
-                ironing: cv.ironing || null,
-                arabicCooking: cv.arabicCooking || null,
-                sewing: cv.sewing || null,
-                driving: cv.driving || null,
-                elderCare: cv.elderCare || null,
-                housekeeping: cv.housekeeping || null,
-                cooking: cv.cooking || null,
-                experience: cv.experience || null,
-                education: cv.education || null,
-                skills: cv.skills || null,
-                summary: cv.summary || null,
-                notes: cv.notes || null,
-                priority: cv.priority || 'MEDIUM',
-                source: 'Excel Smart Import',
                 createdById: userId,
                 updatedById: userId
               }
@@ -508,54 +519,21 @@ export async function POST(request: NextRequest) {
       for (const cv of results.details.updatedCVs) {
         if (cv.existingId) {
           try {
+            // Handle image URL download
+            let finalProfileImage = cleanStringValue(cv.profileImage)
+            if (finalProfileImage) {
+              const downloadedPath = await downloadImage(finalProfileImage)
+              if (downloadedPath) {
+                finalProfileImage = downloadedPath
+              }
+            }
+          
             await prisma.cV.update({
                 where: { id: cv.existingId },
                 data: {
-                  fullName: cv.fullName,
-                  fullNameArabic: cv.fullNameArabic || null,
-                  email: cv.email || null,
-                  phone: cv.phone || null,
-                  referenceCode: cv.referenceCode || null,
-                  monthlySalary: cv.monthlySalary || null,
-                  contractPeriod: cv.contractPeriod || null,
-                  position: cv.position || null,
+                  ...cv,
+                  profileImage: finalProfileImage || null,
                   passportNumber: cv.passportNumber && cv.passportNumber.trim() ? cv.passportNumber.trim() : null,
-                  passportIssueDate: cv.passportIssueDate || null,
-                  passportExpiryDate: cv.passportExpiryDate || null,
-                  passportIssuePlace: cv.passportIssuePlace || null,
-                  nationality: cv.nationality || null,
-                  religion: cv.religion || null,
-                  dateOfBirth: cv.dateOfBirth || null,
-                  placeOfBirth: cv.placeOfBirth || null,
-                  livingTown: cv.livingTown || null,
-                  maritalStatus: cv.maritalStatus || null,
-                  numberOfChildren: cv.numberOfChildren || null,
-                  weight: cv.weight || null,
-                  height: cv.height || null,
-                  complexion: cv.complexion || null,
-                  age: cv.age || null,
-                  englishLevel: cv.englishLevel || null,
-                  arabicLevel: cv.arabicLevel || null,
-                  educationLevel: cv.educationLevel || null,
-                  babySitting: cv.babySitting || null,
-                  childrenCare: cv.childrenCare || null,
-                  tutoring: cv.tutoring || null,
-                  disabledCare: cv.disabledCare || null,
-                  cleaning: cv.cleaning || null,
-                  washing: cv.washing || null,
-                  ironing: cv.ironing || null,
-                  arabicCooking: cv.arabicCooking || null,
-                  sewing: cv.sewing || null,
-                  driving: cv.driving || null,
-                  elderCare: cv.elderCare || null,
-                  housekeeping: cv.housekeeping || null,
-                  cooking: cv.cooking || null,
-                  experience: cv.experience || null,
-                  education: cv.education || null,
-                  skills: cv.skills || null,
-                  summary: cv.summary || null,
-                  notes: cv.notes || null,
-                  priority: cv.priority || 'MEDIUM',
                   updatedById: userId
                 }
               })

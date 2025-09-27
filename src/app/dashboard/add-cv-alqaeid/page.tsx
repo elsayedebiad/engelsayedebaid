@@ -157,6 +157,7 @@ export default function AddCVAlqaeidPage() {
     const finalFormData = {
       ...formData,
       previousEmployment: JSON.stringify(employmentHistory.filter(j => j.period || j.country || j.position)),
+      profileImage: formData.profileImage, // Explicitly include profileImage
     }
     
     // التحقق من جميع الحقول المطلوبة
