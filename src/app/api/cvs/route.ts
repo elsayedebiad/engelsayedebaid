@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
 
       // Passport Information
       passportNumber,
-      passportIssueDate,
       passportExpiryDate,
       passportIssuePlace,
 
@@ -155,7 +154,6 @@ export async function POST(request: NextRequest) {
 
         // Passport Information
         passportNumber,
-        passportIssueDate,
         passportExpiryDate,
         passportIssuePlace,
 

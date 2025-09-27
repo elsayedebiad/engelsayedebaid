@@ -55,7 +55,6 @@ interface ParsedAlQaeidCV {
   contractPeriod?: string
   position?: string
   passportNumber?: string
-  passportIssueDate?: string
   passportExpiryDate?: string
   passportIssuePlace?: string
   nationality?: string
@@ -180,7 +179,6 @@ export async function POST(request: NextRequest) {
 
       // Passport Information
       cv.passportNumber = String(row['رقم الجواز'] || '').trim()
-      cv.passportIssueDate = String(row['تاريخ إصدار الجواز'] || '').trim()
       cv.passportExpiryDate = String(row['تاريخ انتهاء الجواز'] || '').trim()
       cv.passportIssuePlace = String(row['مكان إصدار الجواز'] || '').trim()
 
@@ -317,7 +315,6 @@ export async function POST(request: NextRequest) {
             
             // Passport Information
             passportNumber: cv.passportNumber,
-            passportIssueDate: cv.passportIssueDate,
             passportExpiryDate: cv.passportExpiryDate,
             passportIssuePlace: cv.passportIssuePlace,
             

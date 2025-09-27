@@ -20,7 +20,7 @@ export async function GET(
 ) {
   try {
     const authResult = await validateAuthFromRequest(request)
-    if (!authResult.success) {
+    if (!authResult.success || !authResult.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const { user } = authResult
@@ -77,7 +77,7 @@ export async function PATCH(
 ) {
   try {
     const authResult = await validateAuthFromRequest(request)
-    if (!authResult.success) {
+    if (!authResult.success || !authResult.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const { user } = authResult
@@ -97,8 +97,8 @@ export async function PATCH(
       monthlySalary,
       contractPeriod,
       position,
+
       passportNumber,
-      passportIssueDate,
       passportExpiryDate,
       passportIssuePlace,
       nationality,
@@ -179,7 +179,6 @@ export async function PATCH(
         ...(contractPeriod !== undefined && { contractPeriod }),
         ...(position !== undefined && { position }),
         ...(passportNumber !== undefined && { passportNumber }),
-        ...(passportIssueDate !== undefined && { passportIssueDate }),
         ...(passportExpiryDate !== undefined && { passportExpiryDate }),
         ...(passportIssuePlace !== undefined && { passportIssuePlace }),
         ...(nationality !== undefined && { nationality }),
@@ -237,7 +236,7 @@ export async function PATCH(
     const changes = Object.keys(body).filter(key => body[key] !== undefined)
     
     if (status && status !== currentCV.status) {
-      await CVActivityLogger.statusChanged(user.id, Number(cvId), updatedCV.fullName, currentCV.status, status)
+      await CVActivityLogger.statusChanged(String(cvId), updatedCV.fullName, currentCV.status, status)
       
       // Send notification for status change
       try {
@@ -253,7 +252,7 @@ export async function PATCH(
         console.error('Error sending status change notification:', notificationError)
       }
     } else {
-      await CVActivityLogger.updated(user.id, Number(cvId), updatedCV.fullName, changes)
+      await CVActivityLogger.updated(String(cvId), updatedCV.fullName, changes)
     }
 
     return NextResponse.json({ cv: updatedCV })
@@ -272,7 +271,7 @@ export async function DELETE(
 ) {
   try {
     const authResult = await validateAuthFromRequest(request)
-    if (!authResult.success) {
+    if (!authResult.success || !authResult.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const { user } = authResult
@@ -317,7 +316,7 @@ export async function DELETE(
     })
 
     // Log activity
-    await CVActivityLogger.deleted(user.id, Number(cvId), cv.fullName)
+    await CVActivityLogger.deleted(String(cvId), cv.fullName)
 
     // Send notification for CV deletion
     try {

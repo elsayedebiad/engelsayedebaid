@@ -471,7 +471,7 @@ function generateAlQaeidCVHTML(cv: any): string {
                         </tr>
                         <tr>
                             <td class="field-label-en">DATE OF ISSUE</td>
-                            <td class="field-value">${cv.passportIssueDate || ''}</td>
+                            <td class="field-value">-</td>
                             <td class="arabic-text">تاريخ الصدور</td>
                         </tr>
                         <tr>
