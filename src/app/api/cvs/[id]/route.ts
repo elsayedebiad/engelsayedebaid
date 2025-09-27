@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { ActivityType } from '@prisma/client'
 import { validateAuthFromRequest } from '@/lib/middleware-auth'
 import { CVActivityLogger } from '@/lib/activity-logger'
+import { NotificationService } from '@/lib/notification-service'
 
 async function parseAndValidateCvId(params: Promise<{ id: string }>): Promise<number | null> {
   const resolvedParams = await params
@@ -237,6 +238,20 @@ export async function PATCH(
     
     if (status && status !== currentCV.status) {
       await CVActivityLogger.statusChanged(user.id, Number(cvId), updatedCV.fullName, currentCV.status, status)
+      
+      // Send notification for status change
+      try {
+        await NotificationService.notifyStatusChange({
+          cvId: Number(cvId),
+          fullName: updatedCV.fullName,
+          oldStatus: currentCV.status,
+          newStatus: status,
+          userId: user.id,
+          userName: user.name
+        })
+      } catch (notificationError) {
+        console.error('Error sending status change notification:', notificationError)
+      }
     } else {
       await CVActivityLogger.updated(user.id, Number(cvId), updatedCV.fullName, changes)
     }
@@ -303,6 +318,18 @@ export async function DELETE(
 
     // Log activity
     await CVActivityLogger.deleted(user.id, Number(cvId), cv.fullName)
+
+    // Send notification for CV deletion
+    try {
+      await NotificationService.notifyDeleteCV({
+        fullName: cv.fullName,
+        userId: user.id,
+        userName: user.name,
+        reason: 'تم حذف السيرة الذاتية من النظام'
+      })
+    } catch (notificationError) {
+      console.error('Error sending delete CV notification:', notificationError)
+    }
 
     return NextResponse.json({ message: 'CV deleted successfully' })
   } catch (error) {

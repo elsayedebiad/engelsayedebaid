@@ -26,6 +26,7 @@ model User {
   updatedCVs CV[]         @relation("CVUpdatedBy")
   activities ActivityLog[]
   sessions   Session[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -59,7 +60,6 @@ model CV {
 
   // Passport Information
   passportNumber String? @unique
-  referenceCode  String? @unique
   passportExpiryDate String?
   passportIssuePlace String?
 
@@ -159,6 +159,22 @@ model Contract {
   @@map("contracts")
 }
 
+model Notification {
+  id          Int      @id @default(autoincrement())
+  title       String
+  message     String
+  type        NotificationType
+  category    String   // "import", "cv", "user", "system"
+  data        String?  // JSON data with details
+  isRead      Boolean  @default(false)
+  userId      Int      // Admin user who should receive this
+  createdAt   DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
 model ActivityLog {
   id          Int          @id @default(autoincrement())
   userId      Int
@@ -183,6 +199,13 @@ enum Role {
   ADMIN
   SUB_ADMIN
   USER
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
 }
 
 enum CVStatus {

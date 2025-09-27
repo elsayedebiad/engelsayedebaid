@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { PrismaClient } from '@prisma/client'
+import { NotificationService } from '@/lib/notification-service'
 
 const prisma = new PrismaClient()
 
@@ -551,6 +552,26 @@ export async function POST(request: NextRequest) {
             errors.push(`الصف ${cv.rowNumber}: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`)
           }
         }
+      }
+
+      // Send notification about the import
+      try {
+        const user = await prisma.user.findUnique({ where: { id: userId } })
+        if (user) {
+          await NotificationService.notifyImport({
+            fileName: file.name,
+            totalRows: results.totalRows,
+            newRecords: results.newRecords,
+            updatedRecords: results.updatedRecords,
+            skippedRecords: results.skippedRecords,
+            errorRecords: results.errorRecords + errors.length,
+            importType: 'الاستيراد الذكي',
+            userId: userId,
+            userName: user.name
+          })
+        }
+      } catch (notificationError) {
+        console.error('Error sending import notification:', notificationError)
       }
 
       // If there were errors during execution, include them in the response

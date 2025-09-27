@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { ActivityType, CVStatus, Priority } from '@prisma/client'
 import { CVActivityLogger } from '@/lib/activity-logger'
+import { NotificationService } from '@/lib/notification-service'
 
 export async function GET(request: NextRequest) {
   try {
@@ -238,6 +239,19 @@ export async function POST(request: NextRequest) {
 
     // Log activity
     await CVActivityLogger.created(user.id, updatedCv.id, fullName, 'Manual')
+
+    // Send notification
+    try {
+      await NotificationService.notifyNewCV({
+        cvId: updatedCv.id,
+        fullName: fullName,
+        userId: user.id,
+        userName: user.name,
+        source: 'Manual Entry'
+      })
+    } catch (notificationError) {
+      console.error('Error sending new CV notification:', notificationError)
+    }
 
     return NextResponse.json({ cv: updatedCv }, { status: 201 })
   } catch (error) {

@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Sparkles,
   Bell,
+  BellRing,
   Settings,
   Grid3X3,
   Crown,
@@ -139,6 +140,13 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       label: 'معرض السير الذاتية',
       icon: Grid3X3,
       href: '/gallery'
+    },
+    {
+      id: 'notifications',
+      label: 'مركز الإشعارات',
+      icon: BellRing,
+      href: '/dashboard/notifications',
+      adminOnly: true
     },
     {
       id: 'activity-log',
