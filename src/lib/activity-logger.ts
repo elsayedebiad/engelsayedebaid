@@ -15,6 +15,12 @@ export interface ActivityLogData {
  */
 export async function logActivity(data: ActivityLogData) {
   try {
+    // فحص البيئة - تشغيل فقط في client-side
+    if (typeof window === 'undefined') {
+      console.log('Activity logged (server-side):', data.action)
+      return
+    }
+
     // إنشاء سجل النشاط
     const activity = {
       id: Date.now().toString(),
@@ -23,7 +29,7 @@ export async function logActivity(data: ActivityLogData) {
       userName: 'المستخدم الحالي', // سيتم تحديثه لاحقاً
       userEmail: 'user@example.com', // سيتم تحديثه لاحقاً
       ipAddress: '127.0.0.1',
-      userAgent: navigator.userAgent,
+      userAgent: navigator?.userAgent || 'Unknown',
       createdAt: new Date().toISOString()
     }
 

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
-        contracts: true, // Include contracts data
+        contract: true, // Include contract data
       },
       orderBy: {
         createdAt: 'desc',
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const { validateAuthFromRequest } = await import('@/lib/middleware-auth')
     const authResult = await validateAuthFromRequest(request)
 
-    if (!authResult.success) {
+    if (!authResult.success || !authResult.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Log activity
-    await CVActivityLogger.created(user.id, updatedCv.id, fullName, 'Manual')
+    await CVActivityLogger.created(String(updatedCv.id), fullName)
 
     // Send notification
     try {
