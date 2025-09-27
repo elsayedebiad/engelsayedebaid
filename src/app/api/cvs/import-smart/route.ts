@@ -175,7 +175,7 @@ const checkForDuplicates = async (cv: ProcessedCV, processedPassports: Set<strin
       if (existingByPassport) {
         return { 
           isDuplicate: true, 
-          existingId: existingByPassport.id, 
+          existingId: existingByPassport.id, // This is a string (cuid), not number
           reason: 'رقم جواز السفر موجود مسبقاً في قاعدة البيانات' 
         }
       }
