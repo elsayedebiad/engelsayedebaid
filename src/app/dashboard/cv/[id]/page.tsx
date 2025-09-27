@@ -36,7 +36,6 @@ interface CV {
   
   // Passport Information
   passportNumber?: string
-  passportIssueDate?: string
   passportExpiryDate?: string
   passportIssuePlace?: string
   
@@ -132,7 +131,6 @@ export default function CVDetailPage() {
     contractPeriod: '',
     position: '',
     passportNumber: '',
-    passportIssueDate: '',
     passportExpiryDate: '',
     passportIssuePlace: '',
     nationality: '',
@@ -233,7 +231,6 @@ export default function CVDetailPage() {
           contractPeriod: data.cv.contractPeriod || '',
           position: data.cv.position || '',
           passportNumber: data.cv.passportNumber || '',
-          passportIssueDate: data.cv.passportIssueDate || '',
           passportExpiryDate: data.cv.passportExpiryDate || '',
           passportIssuePlace: data.cv.passportIssuePlace || '',
           nationality: data.cv.nationality || '',
@@ -680,15 +677,13 @@ export default function CVDetailPage() {
                   {isEditing ? (
                     <input
                       type="text"
-                      name="passportIssueDate"
-                      value={formData.passportIssueDate}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       dir="rtl"
                     />
                   ) : (
                     <div className="flex items-center text-gray-900">
-                      {cv.passportIssueDate || 'غير محدد'}
+                      غير محدد
                     </div>
                   )}
                 </div>

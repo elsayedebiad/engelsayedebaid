@@ -33,7 +33,6 @@ export default function AddCVPage() {
     
     // Passport Information
     passportNumber: '',
-    passportIssueDate: '',
     passportExpiryDate: '',
     passportIssuePlace: '',
     

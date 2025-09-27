@@ -29,7 +29,6 @@ export default function AddCVAlqaeidPage() {
     
     // Passport Information
     passportNumber: '',
-    passportIssueDate: '',
     passportExpiryDate: '',
     passportIssuePlace: '',
     
@@ -168,7 +167,6 @@ export default function AddCVAlqaeidPage() {
       { field: 'monthlySalary', label: 'الراتب الشهري' },
       { field: 'contractPeriod', label: 'مدة العقد' },
       { field: 'passportNumber', label: 'رقم جواز السفر' },
-      { field: 'passportIssueDate', label: 'تاريخ صدور الجواز' },
       { field: 'passportExpiryDate', label: 'تاريخ انتهاء الجواز' },
       { field: 'passportIssuePlace', label: 'مكان صدور الجواز' },
       { field: 'nationality', label: 'الجنسية' },
@@ -419,19 +417,6 @@ export default function AddCVAlqaeidPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  تاريخ صدور الجواز *
-                </label>
-                <input
-                  type="date"
-                  name="passportIssueDate"
-                  value={formData.passportIssueDate}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-black font-medium"
-                  required
-                />
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

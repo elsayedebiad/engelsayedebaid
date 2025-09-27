@@ -57,7 +57,6 @@ interface CV {
   arabicLevel?: string;
   englishLevel?: string;
   passportNumber?: string;
-  passportIssueDate?: string;
   passportExpiryDate?: string;
   passportIssuePlace?: string;
   babySitting?: string;
@@ -279,7 +278,7 @@ const AlqaeidTemplate: React.FC<AlqaeidTemplateProps> = ({ cv }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-3 sm:gap-y-4">
               <InfoItem label="رقم الجواز" value={cv.passportNumber} />
               <InfoItem label="مكان الإصدار" value={cv.passportIssuePlace} />
-              <InfoItem label="تاريخ الإصدار" value={cv.passportIssueDate} />
+              <InfoItem label="تاريخ الإصدار" value="-" />
               <InfoItem label="تاريخ الإنتهاء" value={cv.passportExpiryDate} />
             </div>
           </Section>
